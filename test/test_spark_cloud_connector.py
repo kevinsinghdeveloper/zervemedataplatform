@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, MagicMock, patch
 from pyspark.sql import SparkSession, DataFrame
 
-from connectors.cloud_storage_connectors.SparkCloudConnector import SparkCloudConnector
+from zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector import SparkCloudConnector
 
 
 class TestSparkCloudConnector(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         """Clean up after tests"""
         pass
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_initialization_with_spark_config(self, mock_spark_session):
         """Test that SparkCloudConnector initializes correctly with spark config"""
         # Mock SparkSession builder chain
@@ -42,7 +42,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         # Verify Spark session was created with app name
         mock_spark_session.builder.appName.assert_called_once_with("SparkCloudSession")
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_initialization_with_defaults(self, mock_spark_session):
         """Test initialization with default values when config is minimal"""
         # Mock SparkSession builder chain
@@ -58,7 +58,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         self.assertEqual(connector.bucket, "default-bucket")
         self.assertEqual(connector.prefix, "")
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_get_spark(self, mock_spark_session):
         """Test get_spark returns the Spark session"""
         # Mock SparkSession
@@ -73,7 +73,7 @@ class TestSparkCloudConnector(unittest.TestCase):
 
         self.assertEqual(result, mock_spark)
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_get_dataframe_from_cloud_csv(self, mock_spark_session):
         """Test reading CSV from cloud storage"""
         # Mock Spark session and DataFrame reader
@@ -99,7 +99,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         mock_reader.load.assert_called_once_with("s3a://test-bucket/path/to/file.csv")
         self.assertEqual(result, mock_df)
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_get_dataframe_from_cloud_with_full_s3_path(self, mock_spark_session):
         """Test reading from cloud with full s3a:// path"""
         mock_spark = Mock(spec=SparkSession)
@@ -122,7 +122,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         # Verify it uses the full path as-is
         mock_reader.load.assert_called_once_with(full_path)
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_upload_data_frame_to_cloud_success(self, mock_spark_session):
         """Test uploading DataFrame to cloud storage successfully"""
         # Mock Spark session and JVM
@@ -161,8 +161,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         mock_df.write.format.assert_called_once_with("csv")
         mock_writer.save.assert_called_once()
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_upload_data_frame_to_cloud_write_error(self, mock_spark_session, mock_utility):
         """Test handling of write error during DataFrame upload"""
         mock_spark = Mock(spec=SparkSession)
@@ -187,7 +187,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         mock_utility.error_log.assert_called_once()
         self.assertIn("Error writing DataFrame", str(mock_utility.error_log.call_args))
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_get_dict_from_cloud(self, mock_spark_session):
         """Test reading JSON file as dictionary from cloud"""
         mock_spark = Mock(spec=SparkSession)
@@ -216,7 +216,7 @@ class TestSparkCloudConnector(unittest.TestCase):
         self.assertEqual(result, {"key": "value"})
         mock_pandas_df.to_dict.assert_called_once_with(orient="records")
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_get_dict_from_cloud_empty(self, mock_spark_session):
         """Test reading empty JSON file returns empty dict"""
         mock_spark = Mock(spec=SparkSession)
@@ -240,7 +240,7 @@ class TestSparkCloudConnector(unittest.TestCase):
 
         self.assertEqual(result, {})
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_upload_dict_to_cloud(self, mock_spark_session):
         """Test uploading dictionary as JSON to cloud"""
         mock_spark = MagicMock()
@@ -277,8 +277,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         mock_spark.createDataFrame.assert_called_once_with([test_dict])
         mock_df.write.format.assert_called_once_with("json")
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_list_files_with_relative_prefix(self, mock_spark_session, mock_utility):
         """Test listing files with relative prefix"""
         mock_spark = MagicMock()
@@ -314,8 +314,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         self.assertIn("s3a://test-bucket/folder/file1.csv", result)
         self.assertIn("s3a://test-bucket/folder/file2.csv", result)
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_list_files_with_full_s3_path(self, mock_spark_session, mock_utility):
         """Test listing files with full S3 path"""
         mock_spark = MagicMock()
@@ -343,8 +343,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         # Verify it uses the full path
         self.assertEqual(result, [])
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_list_files_path_does_not_exist(self, mock_spark_session, mock_utility):
         """Test listing files when path doesn't exist"""
         mock_spark = MagicMock()
@@ -371,8 +371,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         mock_utility.warning_log.assert_called_once()
         self.assertEqual(result, [])
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_list_files_filter_by_type(self, mock_spark_session, mock_utility):
         """Test filtering files by type (files vs folders)"""
         mock_spark = MagicMock()
@@ -434,8 +434,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         self.assertEqual(len(result_folders), 1)
         self.assertIn("folder", result_folders[0])
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_copy_folder_source_not_exists(self, mock_spark_session, mock_utility):
         """Test copy folder when source doesn't exist"""
         mock_spark = MagicMock()
@@ -462,8 +462,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         mock_utility.warning_log.assert_called_once()
         self.assertIn("does not exist", str(mock_utility.warning_log.call_args))
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_copy_folder_source_not_directory(self, mock_spark_session, mock_utility):
         """Test copy folder when source is not a directory"""
         mock_spark = MagicMock()
@@ -495,8 +495,8 @@ class TestSparkCloudConnector(unittest.TestCase):
         self.assertIn("not a directory", str(mock_utility.warning_log.call_args))
 
 
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
-    @patch('connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.Utility')
+    @patch('zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector.SparkSession')
     def test_move_folder_destination_exists(self, mock_spark_session, mock_utility):
         """Test move folder when destination already exists"""
         mock_spark = MagicMock()

@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from connectors.api_services.SerpServiceManager import SerpServiceManager
-from abstractions.types.models.SerpSearchResponseModel import SerpSearchResponseModel
-from abstractions.types.models.SerpProductDetailsResponseModel import SerpProductDetailsResponseModel
+from zervedataplatform.connectors.api_services.SerpServiceManager import SerpServiceManager
+from zervedataplatform.abstractions.types.models.SerpSearchResponseModel import SerpSearchResponseModel
+from zervedataplatform.abstractions.types.models.SerpProductDetailsResponseModel import SerpProductDetailsResponseModel
 
 
 class TestSerpServiceManager(unittest.TestCase):
@@ -78,8 +78,8 @@ class TestSerpServiceManager(unittest.TestCase):
 
         self.assertIn("API configuration is required", str(context.exception))
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_shopping_search_data_success(self, mock_utility, mock_requests_get):
         """Test successful shopping search data retrieval"""
         # Mock API response
@@ -137,8 +137,8 @@ class TestSerpServiceManager(unittest.TestCase):
         mock_requests_get.assert_called_once()
         mock_utility.log.assert_called()
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_shopping_search_data_empty_results(self, mock_utility, mock_requests_get):
         """Test shopping search with empty results"""
         mock_response = Mock()
@@ -154,8 +154,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called_with("No results returned from serp")
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_shopping_search_data_http_error(self, mock_utility, mock_requests_get):
         """Test handling of HTTP errors"""
         import requests
@@ -169,8 +169,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called()
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_shopping_search_data_connection_error(self, mock_utility, mock_requests_get):
         """Test handling of connection errors"""
         import requests
@@ -184,8 +184,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called()
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_shopping_search_data_timeout_error(self, mock_utility, mock_requests_get):
         """Test handling of timeout errors"""
         import requests
@@ -199,8 +199,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called()
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_shopping_search_data_with_defaults(self, mock_utility, mock_requests_get):
         """Test shopping search uses default values when not provided"""
         mock_response = Mock()
@@ -216,8 +216,8 @@ class TestSerpServiceManager(unittest.TestCase):
         # Verify defaults were used
         self.assertEqual(result, [])
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_product_details_search_success(self, mock_utility, mock_requests_get):
         """Test successful product details retrieval"""
         mock_response = Mock()
@@ -247,8 +247,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result[0].gpc_id, "GPC001")
         self.assertIn("test product", result[0].description)
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_product_details_search_empty_results(self, mock_utility, mock_requests_get):
         """Test product details search with empty results"""
         mock_response = Mock()
@@ -264,8 +264,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called_with("No results returned from serp")
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_product_details_search_no_api_result(self, mock_utility, mock_requests_get):
         """Test product details when API request fails"""
         import requests
@@ -278,8 +278,8 @@ class TestSerpServiceManager(unittest.TestCase):
 
         self.assertEqual(result, [])
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_serp_product_details_search_missing_product_results_key(self, mock_utility, mock_requests_get):
         """Test handling when product_results key is missing from API response"""
         mock_response = Mock()
@@ -296,8 +296,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called()
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_with_price_filters(self, mock_utility, mock_requests_get):
         """Test that price filters are correctly applied"""
         mock_response = Mock()
@@ -347,8 +347,8 @@ class TestSerpServiceManager(unittest.TestCase):
         # Verify the other copy is unchanged
         self.assertNotIn("new_key", defaults2)
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_params_cast_to_string(self, mock_utility, mock_requests_get):
         """Test that all parameters are cast to strings before API call"""
         mock_response = Mock()
@@ -374,8 +374,8 @@ class TestSerpServiceManager(unittest.TestCase):
         for value in params.values():
             self.assertIsInstance(value, str)
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_nested_value_helper_with_list_keys(self, mock_utility, mock_requests_get):
         """Test the nested value helper function with list keys"""
         # Update config to have list keys
@@ -403,8 +403,8 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertIn("Found description", result[0].description)
 
-    @patch('connectors.api_services.SerpServiceManager.requests.get')
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.requests.get')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_get_with_general_exception(self, mock_utility, mock_requests_get):
         """Test handling of unexpected general exceptions"""
         mock_requests_get.side_effect = Exception("Unexpected error")
@@ -417,7 +417,7 @@ class TestSerpServiceManager(unittest.TestCase):
         self.assertEqual(result, [])
         mock_utility.error_log.assert_called()
 
-    @patch('connectors.api_services.SerpServiceManager.Utility')
+    @patch('zervedataplatform.connectors.api_services.SerpServiceManager.Utility')
     def test_utility_clean_and_convert_called(self, mock_utility):
         """Test that Utility.clean_and_convert is called for numeric fields"""
         mock_utility.clean_and_convert.return_value = 99.99

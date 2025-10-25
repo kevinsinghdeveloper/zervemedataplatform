@@ -3,7 +3,7 @@ import tempfile
 import json
 import os
 import shutil
-from pipeline.Pipeline import PipelineUtility
+from zervedataplatform.pipeline.Pipeline import PipelineUtility
 
 class TestPipelineUtility(unittest.TestCase):
 
@@ -103,7 +103,7 @@ class TestDataPipelineActivityManipulation(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures with a mock ETL component"""
-        from pipeline.Pipeline import DataPipeline, DataConnectorBase
+        from zervedataplatform.pipeline.Pipeline import DataPipeline, DataConnectorBase
 
         # Create a temporary directory for the pipeline activity log
         self.temp_dir = tempfile.mkdtemp()
@@ -165,7 +165,7 @@ class TestDataPipelineActivityManipulation(unittest.TestCase):
 
     def test_activity_content_return_and_manipulation(self):
         """Test returning and manipulating activity content across pipeline stages"""
-        from abstractions.types.enumerations.PipelineStage import PipelineStage
+        from zervedataplatform.abstractions.types.enumerations.PipelineStage import PipelineStage
 
         # Step 1: Run initialize task and get activity contents
         activity_contents = self.data_pipeline.run_only_pipeline(PipelineStage.initialize_task)
@@ -219,7 +219,7 @@ class TestDataPipelineActivityManipulation(unittest.TestCase):
 
     def test_activity_content_chaining_multiple_stages(self):
         """Test chaining activity contents through multiple pipeline stages"""
-        from abstractions.types.enumerations.PipelineStage import PipelineStage
+        from zervedataplatform.abstractions.types.enumerations.PipelineStage import PipelineStage
 
         # Chain 1: Initialize
         activity_contents = self.data_pipeline.run_only_pipeline(PipelineStage.initialize_task)
@@ -249,7 +249,7 @@ class TestDataPipelineActivityManipulation(unittest.TestCase):
 
     def test_activity_content_without_passing_to_next_stage(self):
         """Test that not passing activity_contents starts fresh in next stage"""
-        from abstractions.types.enumerations.PipelineStage import PipelineStage
+        from zervedataplatform.abstractions.types.enumerations.PipelineStage import PipelineStage
 
         # Run initialize task
         activity_contents = self.data_pipeline.run_only_pipeline(PipelineStage.initialize_task)

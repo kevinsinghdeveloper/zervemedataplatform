@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from pyspark.sql import SparkSession, DataFrame
 from dataclasses import dataclass
 
-from connectors.sql_connectors.SparkSqlConnector import SparkSQLConnector
+from zervedataplatform.connectors.sql_connectors.SparkSqlConnector import SparkSQLConnector
 
 
 @dataclass
@@ -37,7 +37,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         """Clean up after tests"""
         pass
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_initialization_with_db_config(self, mock_spark_session):
         """Test that SparkSQLConnector initializes correctly with db config"""
         # Mock SparkSession builder chain
@@ -58,7 +58,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         # Verify Spark session was created with app name
         mock_spark_session.builder.appName.assert_called_once_with("SparkSQLSession")
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_get_spark(self, mock_spark_session):
         """Test get_spark returns the Spark session"""
         # Mock SparkSession
@@ -73,7 +73,7 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         self.assertEqual(result, mock_spark)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_write_dataframe_to_table_append_mode(self, mock_spark_session):
         """Test writing DataFrame to table in append mode"""
         # Mock SparkSession
@@ -111,7 +111,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_writer.mode.assert_called_once_with("append")
         mock_writer.save.assert_called_once()
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_write_dataframe_to_table_overwrite_mode(self, mock_spark_session):
         """Test writing DataFrame to table in overwrite mode"""
         # Mock SparkSession
@@ -136,7 +136,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_writer.mode.assert_called_once_with("overwrite")
         mock_writer.save.assert_called_once()
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_run_sql_and_get_df(self, mock_spark_session):
         """Test running SQL query and getting DataFrame"""
         # Mock SparkSession
@@ -167,7 +167,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_reader.load.assert_called_once()
         self.assertEqual(result, mock_df)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_pull_data_from_table_with_filters(self, mock_spark_session):
         """Test pulling data from table with filters"""
         # Mock SparkSession
@@ -202,7 +202,7 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         self.assertEqual(result, mock_df)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_check_if_table_exists(self, mock_spark_session):
         """Test checking if table exists"""
         # Mock SparkSession
@@ -234,7 +234,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         self.assertIn("test_table", query)
         self.assertTrue(result)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_get_table_row_count(self, mock_spark_session):
         """Test getting table row count"""
         # Mock SparkSession
@@ -266,7 +266,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         self.assertIn("test_table", query)
         self.assertEqual(result, 42)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_check_db_status_success(self, mock_spark_session):
         """Test database status check when connection is working"""
         # Mock SparkSession
@@ -291,7 +291,7 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         self.assertTrue(result)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_check_db_status_failure(self, mock_spark_session):
         """Test database status check when connection fails"""
         # Mock SparkSession
@@ -312,7 +312,7 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         self.assertFalse(result)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_get_sql_type_basic_types(self, mock_spark_session):
         """Test _get_sql_type method with basic types"""
         # Mock SparkSession
@@ -331,7 +331,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         self.assertEqual(connector._get_sql_type(bool), "BOOLEAN")
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_exec_sql_with_psycopg2(self, mock_spark_session, mock_psycopg2_connect):
         """Test exec_sql uses psycopg2 with proper schema configuration"""
         # Mock SparkSession
@@ -368,7 +368,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_conn.close.assert_called_once()
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_exec_sql_with_error_rollback(self, mock_spark_session, mock_psycopg2_connect):
         """Test exec_sql rolls back on error"""
         # Mock SparkSession
@@ -402,7 +402,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_conn.close.assert_called_once()
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_create_table_using_def(self, mock_spark_session, mock_psycopg2_connect):
         """Test creating table using column definitions"""
         # Mock SparkSession
@@ -434,7 +434,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_conn.commit.assert_called_once()
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_clone_table(self, mock_spark_session, mock_psycopg2_connect):
         """Test cloning a table"""
         # Mock SparkSession
@@ -459,7 +459,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_conn.commit.assert_called_once()
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_rename_table(self, mock_spark_session, mock_psycopg2_connect):
         """Test renaming a table"""
         # Mock SparkSession
@@ -483,7 +483,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_cursor.execute.assert_called_once()
         mock_conn.commit.assert_called_once()
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_test_table_by_row_count_with_data(self, mock_spark_session):
         """Test table has rows"""
         # Mock SparkSession
@@ -508,7 +508,7 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         self.assertTrue(result)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_test_table_by_row_count_empty(self, mock_spark_session):
         """Test table is empty"""
         # Mock SparkSession
@@ -533,7 +533,7 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         self.assertFalse(result)
 
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_get_distinct_values_from_single_col(self, mock_spark_session):
         """Test getting distinct values from a column"""
         # Mock SparkSession
@@ -568,7 +568,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         self.assertEqual(result, ["value1", "value2", "value3"])
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_create_table_ctas(self, mock_spark_session, mock_psycopg2_connect):
         """Test creating table using CTAS (CREATE TABLE AS SELECT)"""
         # Mock SparkSession
@@ -595,7 +595,7 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_conn.commit.assert_called_once()
 
     @patch('psycopg2.connect')
-    @patch('connectors.sql_connectors.SparkSqlConnector.SparkSession')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_append_to_table_insert_select(self, mock_spark_session, mock_psycopg2_connect):
         """Test appending data to table using INSERT INTO SELECT"""
         # Mock SparkSession

@@ -1,0 +1,121 @@
+[build-system]
+requires = ["setuptools>=65.5.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zervedataplatform"
+version = "0.1.0"
+description = "E-commerce data extraction and processing platform with AI-powered enrichment"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Zerveme", email = "noreply@zerveme.com"}
+]
+keywords = ["etl", "data-pipeline", "web-scraping", "ai", "e-commerce", "spark", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    # Web scraping and automation
+    "selenium-driverless>=1.9.4",
+    "selenium>=4.0.0",
+    "requests>=2.28.0",
+
+    # Data processing
+    "pandas>=2.3.3",
+    "numpy>=1.24.4",
+    "pyspark==3.5.2",
+
+    # Cloud services - AWS
+    "boto3>=1.26.0",
+    "botocore>=1.29.0",
+
+    # Cloud services - Google
+    "google-cloud-vision>=3.0.0",
+    "google-generativeai>=0.3.0",
+
+    # Database
+    "psycopg2-binary>=2.9.0",
+
+    # AI/ML
+    "openai>=1.0.0",
+
+    # LangChain
+    "langchain>=0.1.0",
+    "langchain-community>=0.0.20",
+    "langchain-openai>=0.0.5",
+    "langchain-core>=0.1.0",
+
+    # Computer Vision
+    "opencv-python>=4.7.0",
+
+    # Python 3.13 compatibility
+    "setuptools>=65.5.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/zerveme/zervemedata"
+Repository = "https://github.com/zerveme/zervemedata"
+
+[tool.setuptools]
+packages = [
+    "abstractions",
+    "abstractions.connectors",
+    "abstractions.pipeline",
+    "abstractions.types",
+    "abstractions.types.enumerations",
+    "abstractions.types.models",
+    "connectors",
+    "connectors.ai",
+    "connectors.ai.base_prompts",
+    "connectors.api_services",
+    "connectors.cloud_storage_connectors",
+    "connectors.sql_connectors",
+    "decorators",
+    "model_transforms",
+    "model_transforms.db",
+    "model_transforms.db.abstractions",
+    "model_transforms.db.helpers",
+    "pipeline",
+    "utils",
+]
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 100
+target-version = ['py311', 'py312', 'py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.venv
+  | build
+  | dist
+)/
+'''

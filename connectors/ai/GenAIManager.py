@@ -1,9 +1,9 @@
 from typing import Any
 
-from data_platform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
-from data_platform.connectors.ai.GeminiGenAiConnector import GeminiGenAiConnector
-from data_platform.connectors.ai.OpenAiConnector import OpenAiConnector
-from data_platform.connectors.ai.LangChainLLMConnector import LangChainLLMConnector
+from abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from connectors.ai.GeminiGenAiConnector import GeminiGenAiConnector
+from connectors.ai.OpenAiConnector import OpenAiConnector
+from connectors.ai.LangChainLLMConnector import LangChainLLMConnector
 
 class GenAIManager:
     def __init__(self, api_config):

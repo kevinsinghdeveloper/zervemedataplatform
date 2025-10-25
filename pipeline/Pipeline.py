@@ -4,10 +4,10 @@ from abc import abstractmethod, ABC
 from datetime import datetime
 from typing import Optional
 
-from data_platform.abstractions.types.enumerations.PipelineStage import PipelineStage
-from data_platform.abstractions.pipeline.PipelineComponent import PipelineComponent
-from data_platform.abstractions.types.enumerations.PipelineSubSteps import PipelineSubSteps
-from data_platform.utils.Utility import Utility
+from abstractions.types.enumerations.PipelineStage import PipelineStage
+from abstractions.pipeline.PipelineComponent import PipelineComponent
+from abstractions.types.enumerations.PipelineSubSteps import PipelineSubSteps
+from utils.Utility import Utility
 
 
 class PipelineUtility:

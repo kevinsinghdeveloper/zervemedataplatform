@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from data_platform.model_transforms.db.abstractions.PipelineRunConfigBase import PipelineRunConfigBase
+from model_transforms.db.abstractions.PipelineRunConfigBase import PipelineRunConfigBase
 
 
 @dataclass

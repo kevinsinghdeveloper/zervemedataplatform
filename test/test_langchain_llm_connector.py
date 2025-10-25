@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from data_platform.connectors.ai.LangChainLLMConnector import LangChainLLMConnector
+from connectors.ai.LangChainLLMConnector import LangChainLLMConnector
 
 
 class TestLangChainLLMConnector(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         }
 
     # Test initialization
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_init_ollama_provider(self, mock_chat_ollama):
         """Test initialization with Ollama provider"""
         mock_model = MagicMock()
@@ -54,7 +54,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIsNotNone(connector)
         mock_chat_ollama.assert_called_once()
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOpenAI')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOpenAI')
     def test_init_openai_compatible_provider(self, mock_chat_openai):
         """Test initialization with OpenAI-compatible provider"""
         mock_model = MagicMock()
@@ -65,7 +65,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIsNotNone(connector)
         mock_chat_openai.assert_called_once()
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_init_with_missing_config_fields(self, mock_chat_ollama):
         """Test initialization with minimal config"""
         mock_model = MagicMock()
@@ -79,7 +79,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
 
         self.assertIsNotNone(connector)
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_init_with_invalid_provider_raises_error(self, mock_chat_ollama):
         """Test initialization with unsupported provider raises ValueError"""
         invalid_config = {
@@ -93,7 +93,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIn("Unsupported provider", str(context.exception))
 
     # Test configuration
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_get_config(self, mock_chat_ollama):
         """Test get_config returns the configuration"""
         mock_chat_ollama.return_value = MagicMock()
@@ -104,7 +104,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertEqual(config, self.ollama_config)
         self.assertEqual(config["model_name"], "llama3.2")
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_configure_llm_ollama(self, mock_chat_ollama):
         """Test configure_llm sets up Ollama correctly"""
         mock_model = MagicMock()
@@ -124,7 +124,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
             timeout=1000
         )
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOpenAI')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOpenAI')
     def test_configure_llm_openai_compatible(self, mock_chat_openai):
         """Test configure_llm sets up OpenAI-compatible API correctly"""
         mock_model = MagicMock()
@@ -142,7 +142,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         )
 
     # Test prompt formatting
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_get_base_prompt(self, mock_chat_ollama):
         """Test get_base_prompt formats prompts correctly"""
         mock_chat_ollama.return_value = MagicMock()
@@ -159,7 +159,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertEqual(user_prompt["content"], "What is AI?")
 
     # Test prompt submission
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_submit_general_prompt(self, mock_chat_ollama):
         """Test submit_general_prompt sends prompt to model"""
         mock_model = MagicMock()
@@ -180,7 +180,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertEqual(response["provider"], "ollama")
         mock_model.invoke.assert_called_once()
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_submit_general_prompt_with_json_flag(self, mock_chat_ollama):
         """Test submit_general_prompt with is_json=True adds JSON instruction"""
         mock_model = MagicMock()
@@ -205,7 +205,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         system_message = call_args[0]
         self.assertIn("JSON", system_message.content)
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_submit_general_prompt_handles_exception(self, mock_chat_ollama):
         """Test submit_general_prompt handles exceptions gracefully"""
         mock_model = MagicMock()
@@ -220,7 +220,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIn("API Error", str(context.exception))
 
     # Test data prompt submission
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_submit_data_prompt(self, mock_chat_ollama):
         """Test submit_data_prompt returns processed response"""
         mock_model = MagicMock()
@@ -241,7 +241,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIn("completion_tokens", usage_data)
         self.assertIn("total_tokens", usage_data)
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_submit_data_prompt_with_empty_response(self, mock_chat_ollama):
         """Test submit_data_prompt handles empty response"""
         mock_model = MagicMock()
@@ -260,7 +260,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIsInstance(usage_data, dict)
 
     # Test response processing
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_process_and_extract_response(self, mock_chat_ollama):
         """Test __process_and_extract_response extracts data correctly"""
         mock_chat_ollama.return_value = MagicMock()
@@ -289,7 +289,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertEqual(usage_data["total_tokens"], 0)
 
     # Test different providers
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_ollama_provider_with_different_models(self, mock_chat_ollama):
         """Test Ollama provider works with different model names"""
         mock_chat_ollama.return_value = MagicMock()
@@ -301,7 +301,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
             connector = LangChainLLMConnector(config)
             self.assertIsNotNone(connector)
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOpenAI')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOpenAI')
     def test_openai_compatible_provider_with_different_urls(self, mock_chat_openai):
         """Test OpenAI-compatible provider works with different base URLs"""
         mock_chat_openai.return_value = MagicMock()
@@ -320,7 +320,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
             self.assertIsNotNone(connector)
 
     # Test error handling
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_configure_llm_handles_connection_error(self, mock_chat_ollama):
         """Test configure_llm handles connection errors during initialization"""
         mock_chat_ollama.side_effect = Exception("Connection refused")
@@ -328,7 +328,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         with self.assertRaises(Exception):
             LangChainLLMConnector(self.ollama_config)
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_missing_model_name_raises_error(self, mock_chat_ollama):
         """Test missing model_name in config raises KeyError"""
         invalid_config = {
@@ -340,7 +340,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
             LangChainLLMConnector(invalid_config)
 
     # Test integration scenarios
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_full_workflow_ollama(self, mock_chat_ollama):
         """Test complete workflow from initialization to response"""
         mock_model = MagicMock()
@@ -366,7 +366,7 @@ class TestLangChainLLMConnector(unittest.TestCase):
         self.assertIn("characteristics", response_message)
         self.assertIsInstance(usage_data, dict)
 
-    @patch('data_platform.connectors.ai.LangChainLLMConnector.ChatOpenAI')
+    @patch('connectors.ai.LangChainLLMConnector.ChatOpenAI')
     def test_full_workflow_openai_compatible(self, mock_chat_openai):
         """Test complete workflow with OpenAI-compatible provider"""
         mock_model = MagicMock()

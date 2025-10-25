@@ -2,10 +2,10 @@ from dataclasses import asdict
 
 from selenium_driverless.types.by import By
 
-from data_platform.abstractions.types.models.WebSelectors import WebSelectors
+from abstractions.types.models.WebSelectors import WebSelectors
 
-from data_platform.utils.Utility import Utility
-from data_platform.utils.SeleniumBrowserDriverHandler import SeleniumBrowserDriverHandler
+from utils.Utility import Utility
+from utils.SeleniumBrowserDriverHandler import SeleniumBrowserDriverHandler
 
 
 class SeleniumWebElementsExtractor:

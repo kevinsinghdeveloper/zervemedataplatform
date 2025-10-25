@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union
 
-from data_platform.abstractions.types.models.LLMData import LLMData
+from abstractions.types.models.LLMData import LLMData
 
 
 class GenAIApiConnectorBase(ABC):

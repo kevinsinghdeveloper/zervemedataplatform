@@ -3,10 +3,10 @@ import json
 from dataclasses import asdict
 from typing import Any
 
-from data_platform.abstractions.types.models import LLMProductRequestData
-from data_platform.abstractions.types.models.LLMProductRequestData import LLMCharacteristicOption
-from data_platform.connectors.ai.LangChainLLMConnector import LangChainLLMConnector
-from data_platform.utils.Utility import Utility
+from abstractions.types.models import LLMProductRequestData
+from abstractions.types.models.LLMProductRequestData import LLMCharacteristicOption
+from connectors.ai.LangChainLLMConnector import LangChainLLMConnector
+from utils.Utility import Utility
 
 
 class LLMCharacteristicsExtractor:

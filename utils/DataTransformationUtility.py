@@ -7,7 +7,7 @@ from typing import Union, List, Dict, Optional
 from pyspark.sql.functions import col
 from pyspark.sql.types import StructField, StringType, StructType
 
-from data_platform.abstractions.types.models.LLMData import LLMData
+from abstractions.types.models.LLMData import LLMData
 
 
 class DataTransformationUtility:

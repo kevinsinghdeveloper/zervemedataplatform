@@ -1,13 +1,13 @@
 import json
 from typing import Dict, Optional, Union
 
-from data_platform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
 
 import google.generativeai as genai
 
-from data_platform.abstractions.types.models.LLMData import LLMData
-from data_platform.utils.DataTransformationUtility import DataTransformationUtility
-from data_platform.utils.Utility import Utility
+from abstractions.types.models.LLMData import LLMData
+from utils.DataTransformationUtility import DataTransformationUtility
+from utils.Utility import Utility
 
 
 class GeminiGenAiConnector(GenAIApiConnectorBase):

@@ -1,6 +1,6 @@
 from openai import OpenAI
 
-from data_platform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
 
 
 class OpenAiConnector(GenAIApiConnectorBase):

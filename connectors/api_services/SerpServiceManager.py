@@ -3,14 +3,14 @@ from typing import Union
 
 import requests
 
-from data_platform.abstractions.types.models.SerpJobProductDetailsRequestResourceModel import \
+from abstractions.types.models.SerpJobProductDetailsRequestResourceModel import \
     SerpJobProductDetailsRequestResourceModel
-from data_platform.abstractions.types.models.SerpJobRequestResourceModel import SerpJobRequestResourceModel
-from data_platform.abstractions.types.models.SerpJobSearchRequestResourceModel import \
+from abstractions.types.models.SerpJobRequestResourceModel import SerpJobRequestResourceModel
+from abstractions.types.models.SerpJobSearchRequestResourceModel import \
     SerpJobSearchRequestResourceModel
-from data_platform.abstractions.types.models.SerpProductDetailsResponseModel import SerpProductDetailsResponseModel
-from data_platform.abstractions.types.models.SerpSearchResponseModel import SerpSearchResponseModel
-from data_platform.utils.Utility import Utility
+from abstractions.types.models.SerpProductDetailsResponseModel import SerpProductDetailsResponseModel
+from abstractions.types.models.SerpSearchResponseModel import SerpSearchResponseModel
+from utils.Utility import Utility
 
 DEFAULT_PAGE = 1
 DEFAULT_MAX_PAGE = 1

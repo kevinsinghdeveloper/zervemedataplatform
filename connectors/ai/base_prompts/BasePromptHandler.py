@@ -1,5 +1,5 @@
-from data_platform.abstractions.types.enumerations.SiteIdentifiers import SiteIdentifiers
-from data_platform.model_transforms.db.ProductSelectors import product_selectors_instance
+from abstractions.types.enumerations.SiteIdentifiers import SiteIdentifiers
+from model_transforms.db.ProductSelectors import product_selectors_instance
 
 
 def generate_output(product_selector_map):

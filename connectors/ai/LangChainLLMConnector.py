@@ -2,8 +2,8 @@ from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from data_platform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
-from data_platform.utils.Utility import Utility
+from abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from utils.Utility import Utility
 
 
 class LangChainLLMConnector(GenAIApiConnectorBase):

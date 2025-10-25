@@ -5,8 +5,8 @@ import os
 import shutil
 from unittest.mock import Mock, patch
 
-from data_platform.connectors.ai.llm_characteristics_extractor import LLMCharacteristicsExtractor
-from data_platform.abstractions.types.models.LLMProductRequestData import (
+from connectors.ai.llm_characteristics_extractor import LLMCharacteristicsExtractor
+from abstractions.types.models.LLMProductRequestData import (
     LLMProductRequestData,
     LLMCharacteristicOption
 )
@@ -75,8 +75,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         """Clean up test fixtures"""
         shutil.rmtree(self.temp_dir)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_initialization(self, mock_read_json, mock_llm_connector):
         """Test LLMCharacteristicsExtractor initialization"""
         mock_read_json.return_value = self.category_def
@@ -93,8 +93,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Verify category config was loaded
         mock_read_json.assert_called_once_with(self.category_config_path)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_get_all_characteristics_with_valid_product(self, mock_read_json, mock_llm_connector):
         """Test get_all_characteristics extracts characteristics correctly"""
         mock_read_json.return_value = self.category_def
@@ -129,8 +129,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Verify LLM was called for each characteristic
         self.assertEqual(mock_llm.submit_data_prompt.call_count, 3)  # color, material, size
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_get_all_characteristics_with_no_product_information(self, mock_read_json, mock_llm_connector):
         """Test get_all_characteristics with no product information"""
         mock_read_json.return_value = self.category_def
@@ -156,8 +156,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Should return empty dict for all characteristics
         self.assertEqual(result, {'color': [], 'material': [], 'size': []})
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_get_all_characteristics_with_invalid_category(self, mock_read_json, mock_llm_connector):
         """Test get_all_characteristics with category not in config"""
         mock_read_json.return_value = self.category_def
@@ -180,8 +180,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Should return empty list
         self.assertEqual(result, [])
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_llm_response_with_markdown_code_blocks(self, mock_read_json, mock_llm_connector):
         """Test parsing LLM response with markdown code blocks"""
         mock_read_json.return_value = self.category_def
@@ -211,8 +211,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Should still parse correctly
         self.assertIn("color", result)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_llm_response_with_incomplete_json(self, mock_read_json, mock_llm_connector):
         """Test parsing incomplete JSON response from LLM"""
         mock_read_json.return_value = self.category_def
@@ -242,8 +242,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Should attempt to fix and parse, or return empty
         self.assertIsInstance(result, dict)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_llm_response_with_empty_string(self, mock_read_json, mock_llm_connector):
         """Test handling empty response from LLM"""
         mock_read_json.return_value = self.category_def
@@ -274,8 +274,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         for char in result.values():
             self.assertEqual(char, [])
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_llm_response_as_dict_with_lists(self, mock_read_json, mock_llm_connector):
         """Test parsing dict response with list values"""
         mock_read_json.return_value = self.category_def
@@ -305,8 +305,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Should flatten dict values into lists
         self.assertIsInstance(result, dict)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_llm_response_with_single_quotes(self, mock_read_json, mock_llm_connector):
         """Test parsing response with Python single quotes (not valid JSON)"""
         mock_read_json.return_value = self.category_def
@@ -336,8 +336,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Should use ast.literal_eval as fallback
         self.assertIsInstance(result, dict)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_get_config_returns_serializable_config(self, mock_read_json, mock_llm_connector):
         """Test get_config returns configuration for serialization"""
         mock_read_json.return_value = self.category_def
@@ -359,8 +359,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         self.assertEqual(config['category_maps'], [self.category_config_path])
         self.assertEqual(config['ai_config'], self.gen_ai_config)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_transform_data_for_prompt_static_method(self, mock_read_json, mock_llm_connector):
         """Test transform_data_for_prompt formats data correctly"""
         prod_data = LLMProductRequestData(
@@ -383,8 +383,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         self.assertIn("Nike Air Max", prompt)
         self.assertIn("color", prompt)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_multiple_category_configs(self, mock_read_json, mock_llm_connector):
         """Test loading multiple category configuration files"""
         # Create second config file
@@ -414,8 +414,8 @@ class TestLLMCharacteristicsExtractor(unittest.TestCase):
         # Verify both configs were loaded
         self.assertEqual(mock_read_json.call_count, 2)
 
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
-    @patch('data_platform.connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
+    @patch('connectors.ai.llm_characteristics_extractor.LangChainLLMConnector')
+    @patch('connectors.ai.llm_characteristics_extractor.Utility.read_in_json_file')
     def test_llm_exception_handling(self, mock_read_json, mock_llm_connector):
         """Test that LLM exceptions are raised (not caught at this level)"""
         mock_read_json.return_value = self.category_def

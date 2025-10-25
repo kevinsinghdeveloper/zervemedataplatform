@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from data_platform.model_transforms.db.PipelineRunConfig import PipelineRunConfig
-from data_platform.model_transforms.db.Sites import Sites
-from data_platform.model_transforms.db.abstractions.ModelBase import ModelBase
-from data_platform.model_transforms.db.helpers.data_class_helpers import primary_key, foreign_key
+from model_transforms.db.PipelineRunConfig import PipelineRunConfig
+from model_transforms.db.Sites import Sites
+from model_transforms.db.abstractions.ModelBase import ModelBase
+from model_transforms.db.helpers.data_class_helpers import primary_key, foreign_key
 
 
 @dataclass

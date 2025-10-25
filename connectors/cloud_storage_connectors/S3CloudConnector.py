@@ -6,8 +6,8 @@ import pandas as pd
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError, BotoCoreError
 
-from data_platform.abstractions.connectors.CloudConnector import CloudConnector
-from data_platform.utils.Utility import Utility
+from abstractions.connectors.CloudConnector import CloudConnector
+from utils.Utility import Utility
 
 CSV_DEL = "|"
 class S3CloudConnector(CloudConnector):

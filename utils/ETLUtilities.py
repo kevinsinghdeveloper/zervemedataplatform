@@ -5,10 +5,10 @@ from pyspark import Row
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import lit, concat_ws, col
 
-from data_platform.connectors.cloud_storage_connectors.SparkCloudConnector import SparkCloudConnector
-from data_platform.connectors.sql_connectors.SparkSqlConnector import SparkSQLConnector
-from data_platform.model_transforms.db.PipelineRunConfig import PipelineRunConfig
-from data_platform.utils.Utility import Utility
+from connectors.cloud_storage_connectors.SparkCloudConnector import SparkCloudConnector
+from connectors.sql_connectors.SparkSqlConnector import SparkSQLConnector
+from model_transforms.db.PipelineRunConfig import PipelineRunConfig
+from utils.Utility import Utility
 
 
 class ETLUtilities:

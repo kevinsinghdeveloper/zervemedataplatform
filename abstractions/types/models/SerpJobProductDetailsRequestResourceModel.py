@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from data_platform.abstractions.types.models.SerpJobRequestResourceModel import SerpJobRequestResourceModel
+from abstractions.types.models.SerpJobRequestResourceModel import SerpJobRequestResourceModel
 
 
 @dataclass

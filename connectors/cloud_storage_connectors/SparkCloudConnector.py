@@ -1,7 +1,7 @@
 from typing import Dict, List
 from pyspark.sql import SparkSession, DataFrame
-from data_platform.abstractions.connectors.CloudConnector import CloudConnector
-from data_platform.utils.Utility import Utility
+from abstractions.connectors.CloudConnector import CloudConnector
+from utils.Utility import Utility
 
 
 class SparkCloudConnector(CloudConnector):

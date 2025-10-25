@@ -3,8 +3,8 @@ from unittest.mock import Mock, MagicMock, patch, call
 from pyspark.sql import SparkSession, DataFrame
 import pandas as pd
 
-from data_platform.utils.ETLUtilities import ETLUtilities
-from data_platform.model_transforms.db.PipelineRunConfig import PipelineRunConfig
+from utils.ETLUtilities import ETLUtilities
+from model_transforms.db.PipelineRunConfig import PipelineRunConfig
 
 
 class TestETLUtilities(unittest.TestCase):
@@ -30,9 +30,9 @@ class TestETLUtilities(unittest.TestCase):
             'database': 'test_db'
         }
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_initialization(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test ETLUtilities initialization"""
         mock_spark = MagicMock()
@@ -49,9 +49,9 @@ class TestETLUtilities(unittest.TestCase):
         # Verify SQL connector was initialized
         mock_sql_connector.assert_called_once_with(self.mock_pipeline_config.db_config)
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_get_all_files_from_folder(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test get_all_files_from_folder returns files from cloud"""
         mock_spark = MagicMock()
@@ -68,9 +68,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertEqual(result, ['file1', 'file2', 'file3'])
         mock_cloud.list_files.assert_called_once_with('s3://test-bucket/path', 'folders')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_get_all_files_from_folder_with_item_type(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test get_all_files_from_folder with custom item_type"""
         mock_spark = MagicMock()
@@ -86,9 +86,9 @@ class TestETLUtilities(unittest.TestCase):
 
         mock_cloud.list_files.assert_called_once_with('s3://test-bucket/path', 'files')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_check_all_files_consistency_in_folder_success(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test check_all_files_consistency_in_folder with valid files"""
         mock_spark = MagicMock()
@@ -114,9 +114,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertEqual(errors['file1'], [])
         self.assertEqual(errors['file2'], [])
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_check_all_files_consistency_in_folder_empty_file(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test check_all_files_consistency_in_folder with empty file"""
         mock_spark = MagicMock()
@@ -140,9 +140,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertFalse(passed)
         self.assertIn("File content is empty", errors['empty_file'])
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_check_all_files_consistency_in_folder_malformed(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test check_all_files_consistency_in_folder with malformed file"""
         mock_spark = MagicMock()
@@ -166,9 +166,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertFalse(passed)
         self.assertIn("File is malformed -- possibly delimiter issue?", errors['malformed_file'])
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_get_latest_folder_using_config(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test get_latest_folder_using_config returns latest folder"""
         mock_spark = MagicMock()
@@ -189,9 +189,9 @@ class TestETLUtilities(unittest.TestCase):
 
         self.assertEqual(result, 's3://test-bucket/source/20231202_150000')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_move_folder_to_path(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test move_folder_to_path copies folder"""
         mock_spark = MagicMock()
@@ -208,9 +208,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertTrue(result)
         mock_cloud.copy_folder.assert_called_once_with('source_path', 'dest_path')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_move_source_to_xform_location_using_config(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test move_source_to_xform_location_using_config"""
         mock_spark = MagicMock()
@@ -229,9 +229,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(final_path, 's3://test-bucket/xform/20231201_120000')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_get_df_from_cloud(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test get_df_from_cloud retrieves DataFrame"""
         mock_spark = MagicMock()
@@ -249,9 +249,9 @@ class TestETLUtilities(unittest.TestCase):
         self.assertEqual(result, mock_df)
         mock_cloud.get_dataframe_from_cloud.assert_called_once_with(file_path='s3://test-bucket/file.parquet')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_write_df_to_table(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test write_df_to_table writes to database"""
         mock_spark = MagicMock()
@@ -271,9 +271,9 @@ class TestETLUtilities(unittest.TestCase):
             mode='append'
         )
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_remove_tables_from_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test remove_tables_from_db drops multiple tables"""
         mock_spark = MagicMock()
@@ -294,9 +294,9 @@ class TestETLUtilities(unittest.TestCase):
             call('table3')
         ])
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_convert_dict_to_spark_df(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test convert_dict_to_spark_df converts dict list to DataFrame"""
         # Create a real Spark session for this test
@@ -321,9 +321,9 @@ class TestETLUtilities(unittest.TestCase):
 
         spark.stop()
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_add_column_to_spark_df(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test add_column_to_spark_df adds column to DataFrame"""
         spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
@@ -344,9 +344,9 @@ class TestETLUtilities(unittest.TestCase):
 
         spark.stop()
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_upload_df(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test upload_df uploads DataFrame to cloud"""
         mock_spark = MagicMock()
@@ -392,9 +392,9 @@ class TestETLUtilities(unittest.TestCase):
 
         self.assertEqual(result, 's3://bucket/20231201_120000')
 
-    @patch('data_platform.utils.ETLUtilities.SparkSQLConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkCloudConnector')
-    @patch('data_platform.utils.ETLUtilities.SparkSession')
+    @patch('utils.ETLUtilities.SparkSQLConnector')
+    @patch('utils.ETLUtilities.SparkCloudConnector')
+    @patch('utils.ETLUtilities.SparkSession')
     def test_convert_pandas_to_spark_df(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
         """Test convert_pandas_to_spark_df converts Pandas DataFrame to Spark"""
         spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()

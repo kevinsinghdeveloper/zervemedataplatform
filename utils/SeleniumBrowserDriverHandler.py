@@ -9,7 +9,7 @@ from selenium.common.exceptions import (
     WebDriverException
 )
 
-from data_platform.utils.Utility import Utility
+from utils.Utility import Utility
 
 # Define the browser options
 driver_options_mapping = {

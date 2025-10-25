@@ -1,6 +1,6 @@
 from dataclasses import dataclass, fields
 
-from data_platform.model_transforms.db.helpers.data_class_helpers import created_time_stamp
+from model_transforms.db.helpers.data_class_helpers import created_time_stamp
 
 
 @dataclass

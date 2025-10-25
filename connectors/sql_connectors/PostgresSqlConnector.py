@@ -3,13 +3,13 @@ import json
 from dataclasses import fields, asdict
 from typing import Type, Dict, List, Any
 
-from data_platform.abstractions.connectors.SqlConnector import SqlConnector
+from abstractions.connectors.SqlConnector import SqlConnector
 
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
-from data_platform.utils.Utility import Utility
+from utils.Utility import Utility
 
 
 class PostgresSqlConnector(SqlConnector):

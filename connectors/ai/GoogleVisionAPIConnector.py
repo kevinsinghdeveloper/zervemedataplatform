@@ -6,9 +6,9 @@ import cv2
 import numpy as np
 from google.cloud import vision
 
-from data_platform.abstractions.connectors.AIApiConnectorBase import AiApiConnectorBase
+from abstractions.connectors.AIApiConnectorBase import AiApiConnectorBase
 from abstractions.shapes.Rectangle import Rectangle
-from data_platform.utils.Utility import Utility
+from utils.Utility import Utility
 
 
 class GoogleVisionAPIConnector(AiApiConnectorBase):

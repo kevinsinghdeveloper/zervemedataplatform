@@ -1,7 +1,7 @@
 from typing import Type, Dict, Any, List
 from dataclasses import fields
 from pyspark.sql import SparkSession, DataFrame
-from data_platform.abstractions.connectors.SqlConnector import SqlConnector
+from abstractions.connectors.SqlConnector import SqlConnector
 
 
 class SparkSQLConnector(SqlConnector):

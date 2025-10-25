@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zervedataplatform"
-version = "0.1.0"
+version = "0.1.1"
 description = "E-commerce data extraction and processing platform with AI-powered enrichment"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 authors = [
     {name = "Zerveme", email = "noreply@zerveme.com"}
 ]

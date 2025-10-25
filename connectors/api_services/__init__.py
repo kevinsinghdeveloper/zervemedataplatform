@@ -1,5 +1,4 @@
 """API service connectors."""
 
-from .SerpServiceManager import SerpServiceManager
-
+# Avoid circular imports - import on demand
 __all__ = ["SerpServiceManager"]

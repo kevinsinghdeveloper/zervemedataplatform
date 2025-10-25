@@ -1,11 +1,6 @@
 """Enumeration types."""
 
-from .PipelineStage import PipelineStage
-from .PipelineSubSteps import PipelineSubSteps
-from .SiteIdentifiers import SiteIdentifiers
-from .LoginType import LoginType
-from .BrowserType import BrowserType
-
+# Avoid circular imports - import on demand
 __all__ = [
     "PipelineStage",
     "PipelineSubSteps",

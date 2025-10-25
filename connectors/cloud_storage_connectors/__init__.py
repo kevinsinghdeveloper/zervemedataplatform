@@ -1,8 +1,6 @@
 """Cloud storage connector implementations."""
 
-from .S3CloudConnector import S3CloudConnector
-from .SparkCloudConnector import SparkCloudConnector
-
+# Avoid circular imports - import on demand
 __all__ = [
     "S3CloudConnector",
     "SparkCloudConnector",

@@ -1,5 +1,4 @@
 """Base prompt handlers for LLM interactions."""
 
-from .BasePromptHandler import BasePromptHandler
-
+# Avoid circular imports - import on demand
 __all__ = ["BasePromptHandler"]

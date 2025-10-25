@@ -1,5 +1,4 @@
 """Pipeline component abstractions."""
 
-from .PipelineComponent import PipelineComponent
-
+# Avoid circular imports - import on demand
 __all__ = ["PipelineComponent"]

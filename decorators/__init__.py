@@ -1,5 +1,4 @@
 """Custom decorators."""
 
-from .deprecated import deprecated
-
+# Avoid circular imports - import on demand
 __all__ = ["deprecated"]

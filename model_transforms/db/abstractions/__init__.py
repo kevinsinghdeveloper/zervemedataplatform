@@ -1,10 +1,6 @@
 """Abstract base classes for database models."""
 
-from .ModelBase import ModelBase
-from .SitesBase import SitesBase
-from .SelectorsBase import SelectorsBase
-from .PipelineRunConfigBase import PipelineRunConfigBase
-
+# Avoid circular imports - import on demand
 __all__ = [
     "ModelBase",
     "SitesBase",

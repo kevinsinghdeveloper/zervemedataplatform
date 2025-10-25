@@ -1,10 +1,6 @@
 """Base connector interfaces."""
 
-from .SqlConnector import SqlConnector
-from .CloudConnector import CloudConnector
-from .AIApiConnectorBase import AiApiConnectorBase
-from .GenAIApiConnectorBase import GenAIApiConnectorBase
-
+# Avoid circular imports - import on demand
 __all__ = [
     "SqlConnector",
     "CloudConnector",

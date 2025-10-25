@@ -1,8 +1,6 @@
 """SQL database connector implementations."""
 
-from .PostgresSqlConnector import PostgresSqlConnector
-from .SparkSqlConnector import SparkSQLConnector
-
+# Avoid circular imports - import on demand
 __all__ = [
     "PostgresSqlConnector",
     "SparkSQLConnector",

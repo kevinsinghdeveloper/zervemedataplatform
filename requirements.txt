@@ -1,0 +1,35 @@
+# Web scraping and automation
+selenium-driverless>=1.9.4
+selenium>=4.0.0
+requests>=2.28.0
+
+# Data processing
+pandas>=2.0.3
+numpy>=1.24.4
+pyspark==3.5.2
+
+# Cloud services - AWS
+boto3>=1.26.0
+botocore>=1.29.0
+
+# Cloud services - Google
+google-cloud-vision>=3.0.0
+google-generativeai>=0.3.0
+
+# Database
+psycopg2-binary>=2.9.0
+
+# AI/ML
+openai>=1.0.0
+
+# LangChain
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.5
+langchain-core>=0.1.0
+
+# Computer Vision
+opencv-python>=4.7.0
+
+# Testing
+pytest>=7.0.0

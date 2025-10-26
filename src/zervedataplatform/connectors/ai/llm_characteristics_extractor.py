@@ -26,7 +26,6 @@ class LLMCharacteristicsExtractor:
     def __configure_characteristic_category_def_maps(self):
         char_category_config = {}
         for config in self.__llm_characteristics_configs:
-            config = Utility.read_in_json_file(config)
             char_category_config.update(config)
 
         self.__char_category_config = char_category_config

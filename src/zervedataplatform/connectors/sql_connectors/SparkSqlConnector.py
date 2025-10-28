@@ -160,6 +160,17 @@ class SparkSQLConnector(SqlConnector):
             print(f"Error listing tables with prefix '{prefix}': {e}")
             return []
 
+    def list_tables(self) -> List[str]:
+        query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{self.schema}' ORDER BY table_name"
+
+        try:
+            df = self.run_sql_and_get_df(query)
+            return df.select("table_name").rdd.flatMap(lambda x: x).collect()
+        except Exception as e:
+            # If query fails, return empty list
+            print(f"Error listing tables: {e}")
+            return []
+
     def get_table_header(self, table_name: str) -> List[str]:
         """Retrieves column names from a table."""
         query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';"

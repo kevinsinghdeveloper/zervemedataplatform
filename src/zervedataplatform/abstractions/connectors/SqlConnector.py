@@ -68,6 +68,10 @@ class SqlConnector(ABC):
         pass
 
     @abstractmethod
+    def list_tables(self) -> List[str]:
+        pass
+
+    @abstractmethod
     def create_table_ctas(self, tableName: str, innerSql: str, sortkey: str = None, distkey: str = None,
                           include_print: bool = True):
         pass

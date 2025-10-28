@@ -133,6 +133,10 @@ class ETLUtilities:
     def upload_df(self, df: DataFrame, file_name: str):
         self.__spark_cloud_manager.upload_data_frame_to_cloud(df=df, file_path=file_name)
 
+    def get_all_db_tables(self, use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        return db_manager.list_tables()
+
     @staticmethod
     def get_latest_folder_from_list(folders: [str]) -> Union[str | None]:
         def extract_timestamp(folder: str) -> datetime:

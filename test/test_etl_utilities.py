@@ -587,6 +587,50 @@ class TestETLUtilities(unittest.TestCase):
             mode='overwrite'
         )
 
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_get_all_db_tables_from_source(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test get_all_db_tables returns tables from source database by default"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_source_sql.list_tables.return_value = ['source_table1', 'source_table2', 'source_table3']
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.get_all_db_tables()
+
+        # Verify source_db_manager was used
+        mock_source_sql.list_tables.assert_called_once()
+        mock_dest_sql.list_tables.assert_not_called()
+        self.assertEqual(result, ['source_table1', 'source_table2', 'source_table3'])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_get_all_db_tables_from_dest(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test get_all_db_tables with use_dest_db=True returns tables from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_dest_sql.list_tables.return_value = ['dest_table1', 'dest_table2', 'dest_analytics']
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.get_all_db_tables(use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.list_tables.assert_called_once()
+        mock_source_sql.list_tables.assert_not_called()
+        self.assertEqual(result, ['dest_table1', 'dest_table2', 'dest_analytics'])
+
 
 if __name__ == '__main__':
     unittest.main()

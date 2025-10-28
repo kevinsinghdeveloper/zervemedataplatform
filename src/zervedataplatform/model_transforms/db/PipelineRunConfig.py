@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from zervedataplatform.model_transforms.db.abstractions.PipelineRunConfigBase import PipelineRunConfigBase
 
@@ -10,3 +11,4 @@ class PipelineRunConfig(PipelineRunConfigBase):
     run_config: dict = None
     cloud_config: dict = None
     db_config: dict = None
+    dest_db_config: Optional[dict] = None

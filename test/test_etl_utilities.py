@@ -29,6 +29,11 @@ class TestETLUtilities(unittest.TestCase):
             'port': 5432,
             'database': 'test_db'
         }
+        self.mock_pipeline_config.dest_db_config = {
+            'host': 'dest-host',
+            'port': 5432,
+            'database': 'dest_db'
+        }
 
     @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
     @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
@@ -46,8 +51,10 @@ class TestETLUtilities(unittest.TestCase):
         # Verify cloud connector was initialized
         mock_cloud_connector.assert_called_once_with(self.mock_pipeline_config.cloud_config)
 
-        # Verify SQL connector was initialized
-        mock_sql_connector.assert_called_once_with(self.mock_pipeline_config.db_config)
+        # Verify SQL connectors were initialized for both source and dest
+        self.assertEqual(mock_sql_connector.call_count, 2)
+        mock_sql_connector.assert_any_call(self.mock_pipeline_config.db_config)
+        mock_sql_connector.assert_any_call(self.mock_pipeline_config.dest_db_config)
 
     @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
     @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
@@ -416,6 +423,169 @@ class TestETLUtilities(unittest.TestCase):
         self.assertEqual(len(result.columns), 3)
 
         spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_drop_db_tables_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test drop_db_tables with use_dest_db=True drops from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        # Create two different mock SQL connectors
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        tables = ['dest_table1', 'dest_table2']
+        etl_util.drop_db_tables(tables, use_dest_db=True)
+
+        # Verify dest_db_manager was used, not source
+        self.assertEqual(mock_dest_sql.drop_table.call_count, 2)
+        self.assertEqual(mock_source_sql.drop_table.call_count, 0)
+        mock_dest_sql.drop_table.assert_has_calls([
+            call('dest_table1'),
+            call('dest_table2')
+        ])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_drop_db_table_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test drop_db_table with use_dest_db=True drops from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        etl_util.drop_db_table('dest_table', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.drop_table.assert_called_once_with('dest_table')
+        mock_source_sql.drop_table.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_find_all_tables_with_prefix_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test find_all_tables_with_prefix with use_dest_db=True queries destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_dest_sql.list_tables_with_prefix.return_value = ['dest_orders_2024', 'dest_orders_2025']
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.find_all_tables_with_prefix('dest_orders', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.list_tables_with_prefix.assert_called_once_with('dest_orders')
+        mock_source_sql.list_tables_with_prefix.assert_not_called()
+        self.assertEqual(result, ['dest_orders_2024', 'dest_orders_2025'])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_write_df_to_table_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test write_df_to_table with use_dest_db=True writes to destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        mock_df = Mock(spec=DataFrame)
+        etl_util.write_df_to_table(mock_df, 'dest_table', mode='append', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(
+            df=mock_df,
+            table_name='dest_table',
+            mode='append'
+        )
+        mock_source_sql.write_dataframe_to_table.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_remove_tables_from_db_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test remove_tables_from_db with use_dest_db=True removes from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        tables = ['dest_temp1', 'dest_temp2', 'dest_temp3']
+        etl_util.remove_tables_from_db(tables, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        self.assertEqual(mock_dest_sql.drop_table.call_count, 3)
+        self.assertEqual(mock_source_sql.drop_table.call_count, 0)
+        mock_dest_sql.drop_table.assert_has_calls([
+            call('dest_temp1'),
+            call('dest_temp2'),
+            call('dest_temp3')
+        ])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_data_movement_from_source_to_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test complete data movement scenario: read from source, write to destination"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        # Mock cloud storage with DataFrame
+        mock_cloud = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_cloud.get_dataframe_from_cloud.return_value = mock_df
+        mock_cloud_connector.return_value = mock_cloud
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Simulate data movement:
+        # 1. Read from cloud
+        df = etl_util.get_df_from_cloud('s3://test-bucket/processed_data.parquet')
+
+        # 2. Write to source DB for staging
+        etl_util.write_df_to_table(df, 'staging_table', mode='overwrite', use_dest_db=False)
+
+        # 3. Write to destination DB for final storage
+        etl_util.write_df_to_table(df, 'production_table', mode='overwrite', use_dest_db=True)
+
+        # Verify source DB was written to
+        mock_source_sql.write_dataframe_to_table.assert_called_once_with(
+            df=mock_df,
+            table_name='staging_table',
+            mode='overwrite'
+        )
+
+        # Verify destination DB was written to
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(
+            df=mock_df,
+            table_name='production_table',
+            mode='overwrite'
+        )
 
 
 if __name__ == '__main__':

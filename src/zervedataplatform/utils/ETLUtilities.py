@@ -23,13 +23,18 @@ class ETLUtilities:
         self.__spark_utilities = spark_builder.getOrCreate()
 
         self.__spark_cloud_manager = None
-        self.__spark_db_manager = None
+        self.__spark_source_db_manager = None
+        self.__spark_dest_db_manager = None
 
         if pipeline_run_config.cloud_config:
             self.__spark_cloud_manager = SparkCloudConnector(pipeline_run_config.cloud_config)
 
         if pipeline_run_config.db_config:
-            self.__spark_db_manager = SparkSQLConnector(pipeline_run_config.db_config)
+            self.__spark_source_db_manager = SparkSQLConnector(pipeline_run_config.db_config)
+
+        if pipeline_run_config.dest_db_config:
+            self.__spark_dest_db_manager = SparkSQLConnector(pipeline_run_config.dest_db_config)
+
 
     ''' PRE VALIDATION FUNCTIONS '''
 
@@ -38,16 +43,19 @@ class ETLUtilities:
 
         return files
 
-    def drop_db_tables(self, table_names: list[str]):
+    def drop_db_tables(self, table_names: list[str], use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         for table in table_names:
             Utility.log(f"Dropping table... {table}")
-            self.__spark_db_manager.drop_table(table)
+            db_manager.drop_table(table)
 
-    def drop_db_table(self, table_name: str):
-        self.__spark_db_manager.drop_table(table_name)
+    def drop_db_table(self, table_name: str, use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        db_manager.drop_table(table_name)
 
-    def find_all_tables_with_prefix(self, prefix: str) -> list[str]:
-        tables = self.__spark_db_manager.list_tables_with_prefix(prefix)
+    def find_all_tables_with_prefix(self, prefix: str, use_dest_db: bool = False) -> list[str]:
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        tables = db_manager.list_tables_with_prefix(prefix)
         return tables
 
     def check_all_files_consistency_in_folder(self, folder: str) -> tuple[bool, dict[str, list[Any]]]:
@@ -98,12 +106,14 @@ class ETLUtilities:
     def get_df_from_cloud(self, path):
         return self.__spark_cloud_manager.get_dataframe_from_cloud(file_path=path)
 
-    def write_df_to_table(self, df: DataFrame, table_name: str, mode: str = "overwrite"):
-        self.__spark_db_manager.write_dataframe_to_table(df=df, table_name=table_name, mode=mode)
+    def write_df_to_table(self, df: DataFrame, table_name: str, mode: str = "overwrite", use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        db_manager.write_dataframe_to_table(df=df, table_name=table_name, mode=mode)
 
-    def remove_tables_from_db(self, table_names: list[str]):
+    def remove_tables_from_db(self, table_names: list[str], use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         for table in table_names:
-            self.__spark_db_manager.drop_table(table)
+            db_manager.drop_table(table)
 
     def convert_dict_to_spark_df(self, data: list[dict]):
         # return self.__spark_utilities.createDataFrame([Row(**item) for item in data])

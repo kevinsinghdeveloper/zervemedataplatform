@@ -821,6 +821,247 @@ class TestETLUtilities(unittest.TestCase):
         mock_source_sql.pull_data_from_table.assert_not_called()
         self.assertEqual(result, mock_df)
 
+    def test_combine_columns_to_text_basic(self):
+        """Test combine_columns_to_text with basic settings"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        # Create test DataFrame
+        data = [
+            {"title": "Product A", "description": "Great product", "brand": "Nike"},
+            {"title": "Product B", "description": "Amazing item", "brand": "Adidas"},
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            output_column="combined_text"
+        )
+
+        # Check that combined_text column exists
+        self.assertIn("combined_text", result.columns)
+
+        # Check values
+        rows = result.collect()
+        self.assertIn("Product A", rows[0].combined_text)
+        self.assertIn("Great product", rows[0].combined_text)
+        self.assertIn("Nike", rows[0].combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_with_labels(self):
+        """Test combine_columns_to_text with add_labels=True"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"product_title": "Shoes", "brand": "Nike", "color": "Red"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["product_title", "brand", "color"],
+            add_labels=True
+        )
+
+        rows = result.collect()
+        combined_text = rows[0].combined_text
+
+        # Check that labels are added
+        self.assertIn("Product Title:", combined_text)
+        self.assertIn("Brand:", combined_text)
+        self.assertIn("Color:", combined_text)
+        self.assertIn("Shoes", combined_text)
+        self.assertIn("Nike", combined_text)
+        self.assertIn("Red", combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_with_nulls_filtered(self):
+        """Test combine_columns_to_text filters out null values"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"title": "Product A", "description": None, "brand": "Nike"},
+            {"title": "Product B", "description": "Good", "brand": None},
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            filter_empty=True
+        )
+
+        rows = result.collect()
+
+        # First row should have title and brand, but not description
+        self.assertIn("Product A", rows[0].combined_text)
+        self.assertIn("Nike", rows[0].combined_text)
+        # Should not have empty string markers
+        self.assertNotIn("..", rows[0].combined_text.replace(". . ", ".."))
+
+        # Second row should have title and description, but not brand
+        self.assertIn("Product B", rows[1].combined_text)
+        self.assertIn("Good", rows[1].combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_without_filtering(self):
+        """Test combine_columns_to_text with filter_empty=False"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        from pyspark.sql.types import StructType, StructField, StringType
+        schema = StructType([
+            StructField("title", StringType(), True),
+            StructField("description", StringType(), True),
+            StructField("brand", StringType(), True)
+        ])
+
+        data = [
+            {"title": "Product A", "description": None, "brand": "Nike"}
+        ]
+        df = spark.createDataFrame(data, schema=schema)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            filter_empty=False
+        )
+
+        rows = result.collect()
+        # With filter_empty=False, empty values are included
+        # This should have multiple separators next to each other
+        self.assertIn("Product A", rows[0].combined_text)
+        self.assertIn("Nike", rows[0].combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_custom_separator(self):
+        """Test combine_columns_to_text with custom separator"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"col1": "A", "col2": "B", "col3": "C"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["col1", "col2", "col3"],
+            separator=" | "
+        )
+
+        rows = result.collect()
+        self.assertEqual(rows[0].combined_text, "A | B | C")
+
+        spark.stop()
+
+    def test_combine_columns_to_text_custom_output_column(self):
+        """Test combine_columns_to_text with custom output column name"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"col1": "A", "col2": "B"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["col1", "col2"],
+            output_column="custom_column"
+        )
+
+        # Check that custom column exists
+        self.assertIn("custom_column", result.columns)
+        self.assertNotIn("combined_text", result.columns)
+
+        rows = result.collect()
+        self.assertIn("A", rows[0].custom_column)
+        self.assertIn("B", rows[0].custom_column)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_preserves_other_columns(self):
+        """Test that combine_columns_to_text preserves other columns"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"id": 1, "title": "Product A", "description": "Great", "price": 100.0}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description"]
+        )
+
+        # All original columns should still exist
+        self.assertIn("id", result.columns)
+        self.assertIn("title", result.columns)
+        self.assertIn("description", result.columns)
+        self.assertIn("price", result.columns)
+        self.assertIn("combined_text", result.columns)
+
+        rows = result.collect()
+        self.assertEqual(rows[0].id, 1)
+        self.assertEqual(rows[0].price, 100.0)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_with_all_empty_values(self):
+        """Test combine_columns_to_text when all values are empty"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        from pyspark.sql.types import StructType, StructField, StringType
+        schema = StructType([
+            StructField("title", StringType(), True),
+            StructField("description", StringType(), True),
+            StructField("brand", StringType(), True)
+        ])
+
+        data = [
+            {"title": None, "description": None, "brand": None}
+        ]
+        df = spark.createDataFrame(data, schema=schema)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            filter_empty=True
+        )
+
+        rows = result.collect()
+        # When all values are empty, result should be empty string
+        self.assertEqual(rows[0].combined_text, "")
+
+        spark.stop()
+
+    def test_combine_columns_to_text_multiple_rows(self):
+        """Test combine_columns_to_text with multiple rows"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"title": "Product 1", "brand": "Nike"},
+            {"title": "Product 2", "brand": "Adidas"},
+            {"title": "Product 3", "brand": "Puma"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "brand"],
+            separator=" - "
+        )
+
+        rows = result.collect()
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0].combined_text, "Product 1 - Nike")
+        self.assertEqual(rows[1].combined_text, "Product 2 - Adidas")
+        self.assertEqual(rows[2].combined_text, "Product 3 - Puma")
+
+        spark.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

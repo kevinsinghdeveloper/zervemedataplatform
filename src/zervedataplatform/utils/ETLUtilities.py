@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Union, Any
+from typing import Union, Any, List
 
 from pyspark import Row
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import lit, concat_ws, col
+from pyspark.sql.functions import lit, concat_ws, col, coalesce, concat, array, array_remove
 
 from zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector import SparkCloudConnector
 from zervedataplatform.connectors.sql_connectors.SparkSqlConnector import SparkSQLConnector
@@ -162,4 +162,85 @@ class ETLUtilities:
     @staticmethod
     def get_current_datestamp() -> str:
         return datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    @staticmethod
+    def combine_columns_to_text(
+            df: DataFrame,
+            columns: List[str],
+            output_column: str = "combined_text",
+            separator: str = ". ",
+            add_labels: bool = False,
+            filter_empty: bool = True
+    ) -> DataFrame:
+        """
+        Combine multiple columns into a single text column for embeddings.
+
+        Parameters:
+        -----------
+        df : DataFrame
+            Input PySpark DataFrame
+        columns : List[str]
+            List of column names to combine
+        output_column : str, default="combined_text"
+            Name of the output column
+        separator : str, default=". "
+            Separator between column values
+        add_labels : bool, default=False
+            Whether to add column name as label (e.g., "Brand: Nike")
+        filter_empty : bool, default=True
+            Whether to filter out empty/null values
+
+        Returns:
+        --------
+        DataFrame
+            DataFrame with new combined text column
+
+        Example:
+        --------
+        df_combined = combine_columns_to_text(
+            df,
+            ["product_title", "description", "category", "brand"],
+            add_labels=True
+        )
+        """
+
+        if filter_empty:
+            # Build array and remove empty strings
+            if add_labels:
+                text_parts = [
+                    concat(
+                        lit(f"{col_name.replace('_', ' ').title()}: "),
+                        coalesce(col(col_name), lit(""))
+                    )
+                    for col_name in columns
+                ]
+            else:
+                text_parts = [coalesce(col(col_name), lit("")) for col_name in columns]
+
+            return df.withColumn(
+                "_temp_array",
+                array(*text_parts)
+            ).withColumn(
+                output_column,
+                concat_ws(separator, array_remove(col("_temp_array"), ""))
+            ).drop("_temp_array")
+
+        else:
+            # Simple concatenation without filtering
+            if add_labels:
+                text_parts = [
+                    concat(
+                        lit(f"{col_name.replace('_', ' ').title()}: "),
+                        coalesce(col(col_name), lit(""))
+                    )
+                    for col_name in columns
+                ]
+            else:
+                text_parts = [coalesce(col(col_name), lit("")) for col_name in columns]
+
+            return df.withColumn(
+                output_column,
+                concat_ws(separator, *text_parts)
+            )
+
 

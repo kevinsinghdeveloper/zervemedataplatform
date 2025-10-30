@@ -217,27 +217,3 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
         except Exception as e:
             Utility.error_log(f"Error generating batch embeddings: {e}")
             raise
-
-    def get_pandas_udf(self):
-        """
-        Returns a Pandas UDF for Spark integration.
-        Use this with Spark DataFrame columns.
-
-        Example usage:
-            embedding_udf = connector.get_pandas_udf()
-            df = df.withColumn("embeddings", embedding_udf(col("text_column")))
-
-        Returns:
-            Pandas UDF function for Spark
-        """
-        from pyspark.sql.functions import pandas_udf
-        from pyspark.sql.types import ArrayType, FloatType
-
-        # Capture self reference for closure
-        embeddings_connector = self
-
-        @pandas_udf(ArrayType(FloatType()))
-        def embedding_udf(texts: pd.Series) -> pd.Series:
-            return embeddings_connector.generate_embeddings_batch(texts)
-
-        return embedding_udf

@@ -723,6 +723,104 @@ class TestETLUtilities(unittest.TestCase):
         mock_source_sql.get_table.assert_not_called()
         self.assertEqual(result, mock_df)
 
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_source(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from source database by default"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['id', 'name', 'email']
+        result = etl_util.pull_table_data_to_df('users', columns)
+
+        # Verify source_db_manager was used
+        mock_source_sql.pull_data_from_table.assert_called_once_with('users', columns, None)
+        mock_dest_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_source_with_filters(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from source database with filters"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['id', 'name', 'email']
+        filters = {'status': 'active', 'role': 'admin'}
+        result = etl_util.pull_table_data_to_df('users', columns, filters)
+
+        # Verify source_db_manager was used with filters
+        mock_source_sql.pull_data_from_table.assert_called_once_with('users', columns, filters)
+        mock_dest_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_dest(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from destination database when use_dest_db=True"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['product_id', 'product_name', 'price']
+        result = etl_util.pull_table_data_to_df('products', columns, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.pull_data_from_table.assert_called_once_with('products', columns, None)
+        mock_source_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_dest_with_filters(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from destination database with filters"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['order_id', 'customer_id', 'total']
+        filters = {'status': 'completed', 'payment_method': 'credit_card'}
+        result = etl_util.pull_table_data_to_df('orders', columns, filters, use_dest_db=True)
+
+        # Verify dest_db_manager was used with filters
+        mock_dest_sql.pull_data_from_table.assert_called_once_with('orders', columns, filters)
+        mock_source_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
 
 if __name__ == '__main__':
     unittest.main()

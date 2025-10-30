@@ -87,6 +87,13 @@ class SparkSQLConnector(SqlConnector):
             .option("driver", "org.postgresql.Driver") \
             .load()
 
+    def get_table(self, table_name, limit_n: int = None) -> DataFrame:
+        limit = ""
+        if limit_n:
+            limit = f"LIMIT {limit_n}"
+
+        return self.run_sql_and_get_df(query=f"SELECT * FROM {self.schema}.{table_name} {limit}")
+
     def pull_data_from_table(self, table_name: str, columns: List[str], filters: dict = None) -> DataFrame:
         """Fetches data from a table with optional filters."""
         col_str = ', '.join(columns)

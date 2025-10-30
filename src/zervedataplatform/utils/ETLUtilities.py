@@ -110,6 +110,10 @@ class ETLUtilities:
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         db_manager.write_dataframe_to_table(df=df, table_name=table_name, mode=mode)
 
+    def read_db_table_to_df(self, table_name, limit_n: int = None, use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        return db_manager.get_table(table_name, limit_n)
+
     def remove_tables_from_db(self, table_names: list[str], use_dest_db: bool = False):
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         for table in table_names:

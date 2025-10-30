@@ -1,6 +1,7 @@
 from typing import Type, Dict, Any, List
 
 import pandas as pd
+from pyspark.sql import DataFrame
 
 from abc import abstractmethod, ABC
 
@@ -38,7 +39,11 @@ class SqlConnector(ABC):
         pass
 
     @abstractmethod
-    def run_sql_and_get_df(self, query, warnings: bool) -> pd.DataFrame:
+    def get_table(self, table_name, limit_n: int = None):
+        pass
+
+    @abstractmethod
+    def run_sql_and_get_df(self, query, warnings: bool) :
         pass
 
     @abstractmethod
@@ -137,5 +142,8 @@ class SqlConnector(ABC):
     def insert_data_model_to_table(self, data_class: Any, table_name: str, pk_key: str = "ID") -> int:
         pass
 
+    @abstractmethod
+    def write_dataframe_to_table(self, df: DataFrame, table_name: str, mode: str = "append"):
+        pass
 
 

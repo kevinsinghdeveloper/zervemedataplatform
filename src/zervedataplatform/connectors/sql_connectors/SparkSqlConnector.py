@@ -26,6 +26,7 @@ class SparkSQLConnector(SqlConnector):
         self.user = db_config["user"]
         self.password = db_config["password"]
         self.schema = db_config.get("schema", "public")  # Default schema
+        self.driver = db_config.get("driver", "org.postgresql.Driver")
 
     def get_spark(self):
         """Returns the Spark session for SQL operations."""
@@ -88,7 +89,7 @@ class SparkSQLConnector(SqlConnector):
             .option("query", query) \
             .option("user", self.user) \
             .option("password", self.password) \
-            .option("driver", "org.postgresql.Driver") \
+            .option("driver", self.driver) \
             .load()
 
     def get_table(self, table_name, limit_n: int = None) -> DataFrame:
@@ -343,6 +344,6 @@ class SparkSQLConnector(SqlConnector):
             .option("dbtable", f"{self.schema}.{table_name}") \
             .option("user", self.user) \
             .option("password", self.password) \
-            .option("driver", "org.postgresql.Driver") \
+            .option("driver", self.driver) \
             .mode(mode) \
             .save()

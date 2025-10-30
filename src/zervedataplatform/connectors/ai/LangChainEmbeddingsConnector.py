@@ -241,3 +241,57 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
             return embeddings_connector.generate_embeddings_batch(texts)
 
         return embedding_udf
+
+    def add_embeddings_to_dataframe(self, df, text_column: str, embedding_column: str = "embedding"):
+        """
+        Alternative method that uses RDD instead of Pandas UDF (no Arrow needed).
+        Works with Java 13+ without requiring JVM arguments.
+
+        Args:
+            df: Spark DataFrame
+            text_column: Name of column containing text to embed
+            embedding_column: Name of column to store embeddings (default: "embedding")
+
+        Returns:
+            Spark DataFrame with embeddings column added
+
+        Example:
+            df_with_embeddings = connector.add_embeddings_to_dataframe(
+                df,
+                text_column="product_description",
+                embedding_column="embedding"
+            )
+        """
+        from pyspark.sql import Row
+        from pyspark.sql.types import StructType, StructField, ArrayType, FloatType
+
+        # Get original schema
+        original_schema = df.schema
+
+        # Add embedding field to schema
+        new_schema = StructType(
+            list(original_schema.fields) +
+            [StructField(embedding_column, ArrayType(FloatType()), True)]
+        )
+
+        # Capture self for closure
+        connector = self
+
+        def add_embedding(row):
+            """Process a single row and add embedding"""
+            row_dict = row.asDict()
+            text = row_dict.get(text_column, "")
+
+            if text:
+                embedding = connector.embed_query(str(text))
+            else:
+                embedding = []
+
+            row_dict[embedding_column] = embedding
+            return Row(**row_dict)
+
+        # Use RDD transformation (no Arrow needed)
+        rdd_with_embeddings = df.rdd.map(add_embedding)
+
+        # Convert back to DataFrame
+        return df.sql_ctx.createDataFrame(rdd_with_embeddings, schema=new_schema)

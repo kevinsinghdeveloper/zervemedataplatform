@@ -17,6 +17,17 @@ class ETLUtilities:
 
         spark_builder = SparkSession.builder.appName("SparkUtilitySession")
 
+        # Add default configs for macOS Python 3.13 compatibility
+        import sys
+        import platform
+        if platform.system() == 'Darwin' and sys.version_info >= (3, 13):
+            # Disable MPS (Metal Performance Shaders) to avoid fork() crashes on macOS
+            spark_builder = spark_builder.config(
+                "spark.executorEnv.PYTORCH_ENABLE_MPS_FALLBACK", "1"
+            ).config(
+                "spark.executorEnv.OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES"
+            )
+
         for key, value in pipeline_run_config.cloud_config['spark_config'].items():
             spark_builder = spark_builder.config(key, value)
 

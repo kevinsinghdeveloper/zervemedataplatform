@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Type, Dict, Any, List
 
 import pandas as pd
@@ -7,8 +9,9 @@ from abc import abstractmethod, ABC
 
 
 class SqlConnector(ABC):
-    def __init__(self, dbConfig):
+    def __init__(self, dbConfig, helper_db_connector: SqlConnector = None):
         self._config = dbConfig
+        self._helper_db_connector = helper_db_connector
 
     @abstractmethod
     def _connect_to_db(self):

@@ -1,6 +1,6 @@
 from typing import Any
 
-from zervedataplatform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from zervedataplatform.abstractions.connectors.ChatAgentAIConnectorBase import ChatAgentAiConnectorBase
 from zervedataplatform.connectors.ai.GeminiGenAiConnector import GeminiGenAiConnector
 from zervedataplatform.connectors.ai.OpenAiConnector import OpenAiConnector
 from zervedataplatform.connectors.ai.LangChainLLMConnector import LangChainLLMConnector
@@ -20,7 +20,7 @@ class GenAIManager:
         return data, usage_data
 
     @staticmethod
-    def get_api_connector(api_config) -> GenAIApiConnectorBase:
+    def get_api_connector(api_config) -> ChatAgentAiConnectorBase:
         """
         Factory method to get the appropriate API connector.
         Auto-detects the connector type based on config structure.

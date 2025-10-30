@@ -17,7 +17,9 @@ from datetime import datetime
 
 from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import (
     PostgresSqlConnector,
-    PostgresDataType
+    PostgresDataType,  # Backwards compatibility alias
+    PostgresSqlType,   # New recommended approach
+    INTEGER, VARCHAR, TEXT, JSONB, TIMESTAMP  # Direct type imports
 )
 
 
@@ -42,19 +44,23 @@ def create_products_table_with_vectors(connector: PostgresSqlConnector):
     Create a products table with vector column for embeddings.
 
     This manually creates the table with proper vector type.
+    Shows both old (PostgresDataType) and new (direct imports) approaches.
     """
     # Drop existing table
     connector.drop_table("products")
 
     # Create table with vector column
+    # Note: Both approaches work due to backwards compatibility:
+    # - Old: PostgresDataType.VARCHAR (backwards compatibility alias)
+    # - New: VARCHAR or PostgresSqlType("VARCHAR") (recommended)
     sql = f"""
     CREATE TABLE IF NOT EXISTS {connector.schema}.products (
         id SERIAL PRIMARY KEY,
-        name {PostgresDataType.VARCHAR},
-        description {PostgresDataType.TEXT},
-        metadata {PostgresDataType.JSONB},
+        name {VARCHAR},
+        description {TEXT},
+        metadata {JSONB},
         embedding {PostgresDataType.vector(1536)},
-        created_at {PostgresDataType.TIMESTAMP} DEFAULT CURRENT_TIMESTAMP
+        created_at {TIMESTAMP} DEFAULT CURRENT_TIMESTAMP
     );
     """
 

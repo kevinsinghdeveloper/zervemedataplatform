@@ -1,10 +1,9 @@
 from datetime import datetime
 import json
 from dataclasses import fields, asdict
-from enum import Enum
 from typing import Type, Dict, List, Any
 
-from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector
+from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector, SqlType
 
 import pandas as pd
 import psycopg2
@@ -13,62 +12,106 @@ from psycopg2.extras import execute_values
 from zervedataplatform.utils.Utility import Utility
 
 
-class PostgresDataType(Enum):
-    """Enumeration of PostgreSQL data types with their SQL representations"""
-    INTEGER = 'INTEGER'
-    BIGINT = 'BIGINT'
-    SMALLINT = 'SMALLINT'
-    SERIAL = 'SERIAL'
-    BIGSERIAL = 'BIGSERIAL'
+class PostgresSqlType(SqlType):
+    """
+    Represents a PostgreSQL data type with optional parameters.
 
-    VARCHAR = 'VARCHAR'
-    TEXT = 'TEXT'
-    CHAR = 'CHAR'
+    Inherits from SqlType base class to provide PostgreSQL-specific type system.
+    Supports simple types (INTEGER, TEXT) and parameterized types (VARCHAR(255), VECTOR(1536)).
 
-    FLOAT = 'FLOAT'
-    REAL = 'REAL'
-    DOUBLE_PRECISION = 'DOUBLE PRECISION'
-    NUMERIC = 'NUMERIC'
-    DECIMAL = 'DECIMAL'
+    Examples:
+        >>> INTEGER                    # Simple type
+        >>> VARCHAR(255)               # Parameterized length
+        >>> VECTOR(1536)               # Vector dimensions for pgvector
+        >>> NUMERIC(10, 2)             # Precision and scale
+    """
+    pass  # Inherits all functionality from SqlType base class
 
-    BOOLEAN = 'BOOLEAN'
 
-    DATE = 'DATE'
-    TIME = 'TIME'
-    TIMESTAMP = 'TIMESTAMP'
-    TIMESTAMPTZ = 'TIMESTAMPTZ'
-    INTERVAL = 'INTERVAL'
+# ============================================================================
+# Common simple types as module-level constants
+# ============================================================================
 
-    JSON = 'JSON'
-    JSONB = 'JSONB'
+# Integer types
+INTEGER = PostgresSqlType("INTEGER")
+BIGINT = PostgresSqlType("BIGINT")
+SMALLINT = PostgresSqlType("SMALLINT")
+SERIAL = PostgresSqlType("SERIAL")
+BIGSERIAL = PostgresSqlType("BIGSERIAL")
 
-    # Vector types for pgvector extension
-    VECTOR = 'VECTOR'  # Generic vector type
+# String types
+VARCHAR = PostgresSqlType("VARCHAR")  # Generic VARCHAR, use VARCHAR(n) for specific length
+TEXT = PostgresSqlType("TEXT")
+CHAR = PostgresSqlType("CHAR")
 
-    ARRAY = 'ARRAY'
-    UUID = 'UUID'
-    BYTEA = 'BYTEA'
+# Floating point types
+FLOAT = PostgresSqlType("FLOAT")
+REAL = PostgresSqlType("REAL")
+DOUBLE_PRECISION = PostgresSqlType("DOUBLE PRECISION")
+NUMERIC = PostgresSqlType("NUMERIC")  # Generic NUMERIC, use NUMERIC(p,s) for specific
+DECIMAL = PostgresSqlType("DECIMAL")
 
-    def __str__(self):
-        """Return the SQL type name"""
-        return self.value
+# Boolean
+BOOLEAN = PostgresSqlType("BOOLEAN")
+
+# Date/Time types
+DATE = PostgresSqlType("DATE")
+TIME = PostgresSqlType("TIME")
+TIMESTAMP = PostgresSqlType("TIMESTAMP")
+TIMESTAMPTZ = PostgresSqlType("TIMESTAMPTZ")
+INTERVAL = PostgresSqlType("INTERVAL")
+
+# JSON types
+JSON = PostgresSqlType("JSON")
+JSONB = PostgresSqlType("JSONB")
+
+# Other types
+ARRAY = PostgresSqlType("ARRAY")
+UUID = PostgresSqlType("UUID")
+BYTEA = PostgresSqlType("BYTEA")
+
+
+# ============================================================================
+# Factory functions for parameterized types
+# ============================================================================
+
+# For backwards compatibility, keep the old PostgresDataType name as an alias
+class PostgresDataType:
+    """
+    Backwards compatibility alias for PostgresSqlType constants.
+    Use PostgresSqlType directly for new code.
+    """
+    # Re-export all constants
+    INTEGER = INTEGER
+    BIGINT = BIGINT
+    SMALLINT = SMALLINT
+    SERIAL = SERIAL
+    BIGSERIAL = BIGSERIAL
+    VARCHAR = VARCHAR
+    TEXT = TEXT
+    CHAR = CHAR
+    FLOAT = FLOAT
+    REAL = REAL
+    DOUBLE_PRECISION = DOUBLE_PRECISION
+    NUMERIC = NUMERIC
+    DECIMAL = DECIMAL
+    BOOLEAN = BOOLEAN
+    DATE = DATE
+    TIME = TIME
+    TIMESTAMP = TIMESTAMP
+    TIMESTAMPTZ = TIMESTAMPTZ
+    INTERVAL = INTERVAL
+    JSON = JSON
+    JSONB = JSONB
+    VECTOR = PostgresSqlType("vector")  # Generic vector type
+    ARRAY = ARRAY
+    UUID = UUID
+    BYTEA = BYTEA
 
     @staticmethod
-    def vector(dimensions: int) -> str:
-        """
-        Create a vector type with specific dimensions for pgvector.
-
-        Args:
-            dimensions: Number of dimensions for the vector (e.g., 1536 for OpenAI embeddings)
-
-        Returns:
-            str: PostgreSQL vector type with dimensions (e.g., 'vector(1536)')
-
-        Example:
-            >>> PostgresDataType.vector(1536)
-            'vector(1536)'
-        """
-        return f'vector({dimensions})'
+    def vector(dimensions: int) -> PostgresSqlType:
+        """Create a vector type with specific dimensions for pgvector."""
+        return PostgresSqlType("vector", dimensions=dimensions)
 
 
 class PostgresSqlConnector(SqlConnector):
@@ -156,72 +199,72 @@ class PostgresSqlConnector(SqlConnector):
         query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns_definition});"
         self.exec_sql(query)
 
-    def _get_sql_type(self, python_type):
+    def _get_sql_type(self, python_type) -> PostgresSqlType:
         """
-        Maps Python types to PostgreSQL types using PostgresDataType enum.
+        Maps Python types to PostgreSQL types using PostgresSqlType dataclass.
         Supports pgvector extension for vector/embedding types.
 
         Args:
             python_type: Python type or type annotation to map
 
         Returns:
-            str: PostgreSQL type name
+            PostgresSqlType: PostgreSQL type instance
 
         Examples:
             >>> _get_sql_type(int)
-            'INTEGER'
+            PostgresSqlType(base_type='INTEGER')
             >>> _get_sql_type(dict)
-            'JSONB'
+            PostgresSqlType(base_type='JSONB')
             >>> _get_sql_type(list)
-            'JSONB'  # Arrays/lists default to JSONB for flexibility
+            PostgresSqlType(base_type='JSONB')  # Arrays/lists default to JSONB for flexibility
         """
-        # Mapping from Python types to PostgreSQL enum types
+        # Mapping from Python types to PostgreSQL types
         type_mapping = {
-            int: PostgresDataType.INTEGER,
-            str: PostgresDataType.VARCHAR,
-            float: PostgresDataType.FLOAT,
-            bool: PostgresDataType.BOOLEAN,
-            dict: PostgresDataType.JSONB,
-            list: PostgresDataType.JSONB,  # Lists default to JSONB (can be ARRAY or vector depending on use case)
-            datetime: PostgresDataType.TIMESTAMP
+            int: INTEGER,
+            str: VARCHAR,
+            float: FLOAT,
+            bool: BOOLEAN,
+            dict: JSONB,
+            list: JSONB,  # Lists default to JSONB (can be ARRAY or vector depending on use case)
+            datetime: TIMESTAMP
         }
 
         # Try direct type lookup first
         if python_type in type_mapping:
-            return str(type_mapping[python_type])
+            return type_mapping[python_type]
 
         # Handle type annotations (Optional, Union, List, etc.)
         type_str = str(python_type).lower()
 
         # String-based type mapping for annotations
         string_type_mapping = {
-            'int': PostgresDataType.INTEGER,
-            'str': PostgresDataType.VARCHAR,
-            'float': PostgresDataType.FLOAT,
-            'bool': PostgresDataType.BOOLEAN,
-            'dict': PostgresDataType.JSONB,
-            'list': PostgresDataType.JSONB,
-            'datetime': PostgresDataType.TIMESTAMP,
-            'date': PostgresDataType.DATE,
-            'time': PostgresDataType.TIME,
-            'json': PostgresDataType.JSONB,
-            'jsonb': PostgresDataType.JSONB,
-            'vector': PostgresDataType.VECTOR
+            'int': INTEGER,
+            'str': VARCHAR,
+            'float': FLOAT,
+            'bool': BOOLEAN,
+            'dict': JSONB,
+            'list': JSONB,
+            'datetime': TIMESTAMP,
+            'date': DATE,
+            'time': TIME,
+            'json': JSONB,
+            'jsonb': JSONB,
+            'vector': PostgresSqlType("vector")  # Generic vector without dimensions
         }
 
         # Check for type hints in string representation
         if 'optional' in type_str or 'union' in type_str:
             for type_name, pg_type in string_type_mapping.items():
                 if type_name in type_str:
-                    return str(pg_type)
+                    return pg_type
 
         # Direct string matching
         for type_name, pg_type in string_type_mapping.items():
             if type_name in type_str:
-                return str(pg_type)
+                return pg_type
 
         # Default to VARCHAR for unknown types
-        return str(PostgresDataType.VARCHAR)
+        return VARCHAR
 
     def execute_sql_file(self, file_path: str):
         """Executes SQL commands from a file.
@@ -912,3 +955,18 @@ class PostgresSqlConnector(SqlConnector):
             if 'engine' in locals():
                 engine.dispose()
 
+    def cast_column(self, table_name: str, column_name: str, type: PostgresSqlType):
+        """
+        Cast a column to a different type using ALTER TABLE.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: PostgresSqlType instance representing the target type
+
+        Example:
+            >>> connector.cast_column("users", "age", INTEGER)
+            >>> connector.cast_column("products", "embedding", PostgresDataType.vector(1536))
+        """
+        query = f"ALTER TABLE {self.schema}.{table_name} ALTER COLUMN {column_name} TYPE {type.to_sql()};"
+        self.exec_sql(query)

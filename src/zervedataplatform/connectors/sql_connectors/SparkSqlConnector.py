@@ -347,3 +347,14 @@ class SparkSQLConnector(SqlConnector):
             .option("driver", self.driver) \
             .mode(mode) \
             .save()
+
+    def cast_column(self, table_name: str, column_name: str, type: Any):
+        """
+        Cast a column to a different type by delegating to helper connector.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: SQL type instance (e.g., PostgresSqlType)
+        """
+        self.__helper_db_connector.cast_column(table_name, column_name, type)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Type, Dict, Any, List
+from typing import Type, Dict, Any, List, Optional
+from dataclasses import dataclass
 
 import pandas as pd
 from pyspark.sql import DataFrame
@@ -8,10 +9,56 @@ from pyspark.sql import DataFrame
 from abc import abstractmethod, ABC
 
 
+@dataclass(frozen=True)
+class SqlType:
+    """
+    Base class for SQL data types across different database connectors.
+
+    Provides a common interface for representing SQL types with optional parameters.
+    Subclasses should implement database-specific type systems (e.g., PostgresSqlType, MySqlType).
+
+    Immutable (frozen) to allow use in sets/dicts and ensure consistency.
+
+    Attributes:
+        base_type: The base SQL type name (e.g., 'INTEGER', 'VARCHAR', 'vector')
+        length: Optional length parameter (e.g., VARCHAR(255))
+        precision: Optional precision parameter (e.g., NUMERIC(10,2))
+        scale: Optional scale parameter (e.g., NUMERIC(10,2))
+        dimensions: Optional dimensions parameter (e.g., vector(1536) for pgvector)
+    """
+    base_type: str
+    length: Optional[int] = None
+    precision: Optional[int] = None
+    scale: Optional[int] = None
+    dimensions: Optional[int] = None
+
+    def to_sql(self) -> str:
+        """
+        Generate the SQL type string for this type.
+
+        Subclasses may override this method for database-specific formatting.
+
+        Returns:
+            str: Valid SQL type declaration
+        """
+        if self.dimensions is not None:
+            return f"{self.base_type}({self.dimensions})"
+        elif self.length is not None:
+            return f"{self.base_type}({self.length})"
+        elif self.precision is not None and self.scale is not None:
+            return f"{self.base_type}({self.precision},{self.scale})"
+        elif self.precision is not None:
+            return f"{self.base_type}({self.precision})"
+        return self.base_type
+
+    def __str__(self) -> str:
+        """String representation returns SQL type"""
+        return self.to_sql()
+
+
 class SqlConnector(ABC):
-    def __init__(self, dbConfig, helper_db_connector: SqlConnector = None):
+    def __init__(self, dbConfig):
         self._config = dbConfig
-        self._helper_db_connector = helper_db_connector
 
     @abstractmethod
     def _connect_to_db(self):
@@ -147,6 +194,18 @@ class SqlConnector(ABC):
 
     @abstractmethod
     def write_dataframe_to_table(self, df: DataFrame, table_name: str, mode: str = "append"):
+        pass
+
+    @abstractmethod
+    def cast_column(self, table_name: str, column_name: str, type: SqlType):
+        """
+        Cast a column to a different SQL type.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: SQL type instance (e.g., PostgresSqlType for PostgreSQL connectors)
+        """
         pass
 
 

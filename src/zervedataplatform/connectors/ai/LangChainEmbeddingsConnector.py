@@ -289,7 +289,7 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
         )
 
         # Serialize config for workers (don't serialize the model!)
-        ai_config = self._config
+        ai_config = self.get_config()
 
         def process_partition(iterator):
             """

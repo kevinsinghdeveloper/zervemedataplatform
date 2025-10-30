@@ -21,11 +21,13 @@ psycopg2-binary>=2.9.0
 
 # AI/ML
 openai>=1.0.0
+sentence-transformers>=2.2.0
 
 # LangChain
 langchain>=0.1.0
 langchain-community>=0.0.20
 langchain-openai>=0.0.5
+langchain-huggingface>=0.0.1
 langchain-core>=0.1.0
 
 # Computer Vision

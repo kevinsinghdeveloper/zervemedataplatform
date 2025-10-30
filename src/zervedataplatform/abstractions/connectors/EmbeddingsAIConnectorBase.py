@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
+import pandas as pd
 
 from zervedataplatform.abstractions.connectors.AIConnectorBase import AIConnectorBase
 from zervedataplatform.abstractions.types.models.LLMData import LLMData
@@ -11,5 +12,13 @@ class EmbeddingsAiConnectorBase(AIConnectorBase, ABC):
         self.__config = ai_api_config
 
     @abstractmethod
-    def get_embeddings(self):
+    def get_embeddings(self, text: str) -> List[float]:
+        pass
+
+    @abstractmethod
+    def generate_embeddings_batch(self, texts: Union[pd.Series, List[str]]) -> pd.Series:
+        pass
+
+    @abstractmethod
+    def embed_query(self, text: str):
         pass

@@ -19,6 +19,7 @@ google-generativeai>=0.3.0
 
 # Database
 psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
 
 # AI/ML
 openai>=1.0.0

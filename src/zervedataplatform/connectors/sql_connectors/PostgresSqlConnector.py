@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 from dataclasses import fields, asdict
+from enum import Enum
 from typing import Type, Dict, List, Any
 
 from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector
@@ -10,6 +11,64 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 from zervedataplatform.utils.Utility import Utility
+
+
+class PostgresDataType(Enum):
+    """Enumeration of PostgreSQL data types with their SQL representations"""
+    INTEGER = 'INTEGER'
+    BIGINT = 'BIGINT'
+    SMALLINT = 'SMALLINT'
+    SERIAL = 'SERIAL'
+    BIGSERIAL = 'BIGSERIAL'
+
+    VARCHAR = 'VARCHAR'
+    TEXT = 'TEXT'
+    CHAR = 'CHAR'
+
+    FLOAT = 'FLOAT'
+    REAL = 'REAL'
+    DOUBLE_PRECISION = 'DOUBLE PRECISION'
+    NUMERIC = 'NUMERIC'
+    DECIMAL = 'DECIMAL'
+
+    BOOLEAN = 'BOOLEAN'
+
+    DATE = 'DATE'
+    TIME = 'TIME'
+    TIMESTAMP = 'TIMESTAMP'
+    TIMESTAMPTZ = 'TIMESTAMPTZ'
+    INTERVAL = 'INTERVAL'
+
+    JSON = 'JSON'
+    JSONB = 'JSONB'
+
+    # Vector types for pgvector extension
+    VECTOR = 'VECTOR'  # Generic vector type
+
+    ARRAY = 'ARRAY'
+    UUID = 'UUID'
+    BYTEA = 'BYTEA'
+
+    def __str__(self):
+        """Return the SQL type name"""
+        return self.value
+
+    @staticmethod
+    def vector(dimensions: int) -> str:
+        """
+        Create a vector type with specific dimensions for pgvector.
+
+        Args:
+            dimensions: Number of dimensions for the vector (e.g., 1536 for OpenAI embeddings)
+
+        Returns:
+            str: PostgreSQL vector type with dimensions (e.g., 'vector(1536)')
+
+        Example:
+            >>> PostgresDataType.vector(1536)
+            'vector(1536)'
+        """
+        return f'vector({dimensions})'
 
 
 class PostgresSqlConnector(SqlConnector):
@@ -98,36 +157,71 @@ class PostgresSqlConnector(SqlConnector):
         self.exec_sql(query)
 
     def _get_sql_type(self, python_type):
-        """Maps Python types to SQL types."""
-        # Convert the type to string and handle Optional
+        """
+        Maps Python types to PostgreSQL types using PostgresDataType enum.
+        Supports pgvector extension for vector/embedding types.
+
+        Args:
+            python_type: Python type or type annotation to map
+
+        Returns:
+            str: PostgreSQL type name
+
+        Examples:
+            >>> _get_sql_type(int)
+            'INTEGER'
+            >>> _get_sql_type(dict)
+            'JSONB'
+            >>> _get_sql_type(list)
+            'JSONB'  # Arrays/lists default to JSONB for flexibility
+        """
+        # Mapping from Python types to PostgreSQL enum types
+        type_mapping = {
+            int: PostgresDataType.INTEGER,
+            str: PostgresDataType.VARCHAR,
+            float: PostgresDataType.FLOAT,
+            bool: PostgresDataType.BOOLEAN,
+            dict: PostgresDataType.JSONB,
+            list: PostgresDataType.JSONB,  # Lists default to JSONB (can be ARRAY or vector depending on use case)
+            datetime: PostgresDataType.TIMESTAMP
+        }
+
+        # Try direct type lookup first
+        if python_type in type_mapping:
+            return str(type_mapping[python_type])
+
+        # Handle type annotations (Optional, Union, List, etc.)
         type_str = str(python_type).lower()
 
-        # Mapping from Python types to SQL types
-        mapping = {
-            'int': 'INTEGER',
-            'str': 'VARCHAR',
-            'float': 'FLOAT',
-            'bool': 'BOOLEAN',
-            'dict': 'JSONB'
-            # Add other type mappings as needed
-        }
-        mapping_types = {
-            int: 'INTEGER',
-            str: 'VARCHAR',
-            float: 'FLOAT',
-            bool: 'BOOLEAN',
-            dict: 'JSONB',
-            datetime: 'TIMESTAMP'
-            # Add other type mappings as needed
+        # String-based type mapping for annotations
+        string_type_mapping = {
+            'int': PostgresDataType.INTEGER,
+            'str': PostgresDataType.VARCHAR,
+            'float': PostgresDataType.FLOAT,
+            'bool': PostgresDataType.BOOLEAN,
+            'dict': PostgresDataType.JSONB,
+            'list': PostgresDataType.JSONB,
+            'datetime': PostgresDataType.TIMESTAMP,
+            'date': PostgresDataType.DATE,
+            'time': PostgresDataType.TIME,
+            'json': PostgresDataType.JSONB,
+            'jsonb': PostgresDataType.JSONB,
+            'vector': PostgresDataType.VECTOR
         }
 
-        if 'optional' in type_str:
-            for type in mapping:
-                if type in type_str:
-                    return type
+        # Check for type hints in string representation
+        if 'optional' in type_str or 'union' in type_str:
+            for type_name, pg_type in string_type_mapping.items():
+                if type_name in type_str:
+                    return str(pg_type)
 
-        # Return the corresponding SQL type, defaulting to VARCHAR for unknown types
-        return mapping_types.get(python_type, 'VARCHAR')  # Default to VARCHAR for unknown types
+        # Direct string matching
+        for type_name, pg_type in string_type_mapping.items():
+            if type_name in type_str:
+                return str(pg_type)
+
+        # Default to VARCHAR for unknown types
+        return str(PostgresDataType.VARCHAR)
 
     def execute_sql_file(self, file_path: str):
         """Executes SQL commands from a file.
@@ -258,6 +352,20 @@ class PostgresSqlConnector(SqlConnector):
 
         return df
 
+    def get_table(self, table_name, limit_n: int = None):
+        """Retrieves data from a specified table as a DataFrame.
+
+        Args:
+            table_name (str): The name of the table.
+            limit_n (int, optional): Maximum number of rows to retrieve.
+
+        Returns:
+            pd.DataFrame: The resulting DataFrame containing the rows.
+        """
+        limit_clause = f"LIMIT {limit_n}" if limit_n else ""
+        query = f"SELECT * FROM {self.schema}.{table_name} {limit_clause};"
+        return self.run_sql_and_get_df(query)
+
     def get_table_n_rows_to_df(self, tableName: str, nrows: int) -> pd.DataFrame:
         """Retrieves the first n rows from a specified table as a DataFrame.
 
@@ -279,6 +387,40 @@ class PostgresSqlConnector(SqlConnector):
         """
         query = f"DROP TABLE IF EXISTS {self.schema}.{tableName};"
         self.exec_sql(query)
+
+    def list_tables(self) -> List[str]:
+        """Lists all tables in the current schema.
+
+        Returns:
+            List[str]: List of table names in the schema.
+        """
+        query = f"""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = '{self.schema}'
+        ORDER BY table_name;
+        """
+        result = self.run_sql_and_get_df(query)
+        return result['table_name'].tolist() if not result.empty else []
+
+    def list_tables_with_prefix(self, prefix: str) -> List[str]:
+        """Lists all tables in the current schema that start with the given prefix.
+
+        Args:
+            prefix (str): The prefix to filter table names.
+
+        Returns:
+            List[str]: List of table names matching the prefix.
+        """
+        query = f"""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = '{self.schema}'
+        AND table_name LIKE '{prefix}%'
+        ORDER BY table_name;
+        """
+        result = self.run_sql_and_get_df(query)
+        return result['table_name'].tolist() if not result.empty else []
 
     def create_table_ctas(self, tableName: str, innerSql: str, sortkey: str = None, distkey: str = None,
                           include_print: bool = True):
@@ -712,4 +854,61 @@ class PostgresSqlConnector(SqlConnector):
         ]
 
         return data_instances
+
+    def write_dataframe_to_table(self, df, table_name: str, mode: str = "append"):
+        """Writes a pandas DataFrame to a database table.
+
+        Args:
+            df: Pandas DataFrame to write
+            table_name (str): Target table name
+            mode (str): Write mode - 'append', 'replace', 'fail'
+                - 'append': Insert new records (default)
+                - 'replace': Drop table and recreate
+                - 'fail': Raise error if table exists
+
+        Note:
+            This method is designed for pandas DataFrames.
+            For Spark DataFrames, use SparkSQLConnector instead.
+        """
+        from sqlalchemy import create_engine
+
+        # Create SQLAlchemy connection string
+        connection_string = f"postgresql://{self._config['user']}:{self._config['password']}@{self._config['host']}:{self._config['port']}/{self._config['dbname']}"
+
+        # Add options if they exist
+        if 'options' in self._config and self._config['options']:
+            connection_string += f"?options={self._config['options']}"
+
+        try:
+            # Create engine
+            engine = create_engine(connection_string)
+
+            # Map mode parameter to pandas if_exists parameter
+            if_exists_map = {
+                'append': 'append',
+                'replace': 'replace',
+                'overwrite': 'replace',
+                'fail': 'fail',
+                'error': 'fail'
+            }
+            if_exists = if_exists_map.get(mode, 'append')
+
+            # Write DataFrame to database
+            df.to_sql(
+                name=table_name,
+                con=engine,
+                schema=self.schema,
+                if_exists=if_exists,
+                index=False,
+                method='multi'  # Use multi-row INSERT for better performance
+            )
+
+            Utility.log(f"Successfully wrote {len(df)} rows to {self.schema}.{table_name} (mode: {mode})")
+
+        except Exception as e:
+            Utility.error_log(f"Error writing DataFrame to table {table_name}: {e}")
+            raise
+        finally:
+            if 'engine' in locals():
+                engine.dispose()
 

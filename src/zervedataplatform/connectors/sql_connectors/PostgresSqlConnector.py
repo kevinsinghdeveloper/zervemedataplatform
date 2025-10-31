@@ -1,7 +1,8 @@
 from datetime import datetime
 import json
-from dataclasses import fields, asdict
-from typing import Type, Dict, List, Any
+from dataclasses import fields, asdict, dataclass
+from typing import Type, Dict, List, Any, Optional
+from enum import Enum
 
 from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector, SqlType
 
@@ -12,22 +13,75 @@ from psycopg2.extras import execute_values
 from zervedataplatform.utils.Utility import Utility
 
 
+class PGVectorIndexes(Enum):
+    vector_cosine = "vector_cosine"
+
+@dataclass(frozen=True)
 class PostgresSqlTypeDef(SqlType):
+    """
+    Represents a PostgreSQL data type with optional parameters.
+
+    Inherits from SqlType base class to provide PostgreSQL-specific type system.
+
+    """
+    base_type: str
+    length: Optional[int] = None
+    precision: Optional[int] = None
+    scale: Optional[int] = None
+    dimensions: Optional[int] = None
+
+    def to_sql(self) -> str:
+        """
+        Generate the SQL type string for this type.
+
+        Subclasses may override this method for database-specific formatting.
+
+        Returns:
+            str: Valid SQL type declaration
+        """
+        if self.dimensions is not None:
+            return f"{self.base_type}({self.dimensions})"
+        elif self.length is not None:
+            return f"{self.base_type}({self.length})"
+        elif self.precision is not None and self.scale is not None:
+            return f"{self.base_type}({self.precision},{self.scale})"
+        elif self.precision is not None:
+            return f"{self.base_type}({self.precision})"
+        return self.base_type
+
+@dataclass(frozen=True)
+class PostgresSqlVectorTypeDef(SqlType):
     """
     Represents a PostgreSQL data type with optional parameters.
 
     Inherits from SqlType base class to provide PostgreSQL-specific type system.
     Supports simple types (INTEGER, TEXT) and parameterized types (VARCHAR(255), VECTOR(1536)).
 
-    Examples:
-        >>> INTEGER                    # Simple type
-        >>> VARCHAR(255)               # Parameterized length
-        >>> VECTOR(1536)               # Vector dimensions for pgvector
-        >>> NUMERIC(10, 2)             # Precision and scale
     """
-    pass  # Inherits all functionality from SqlType base class
+    base_type: str
 
+    # index_stuff
+    index_type: PGVectorIndexes
+    idx_table: Optional[str] = None
+    idx_column: Optional[str] = None
+    idx_lists: Optional[int] = None
 
+    def to_sql(self) -> str:
+        """
+        Generate the SQL type string for this type.
+
+        Subclasses may override this method for database-specific formatting.
+
+        Returns:
+            str: Valid SQL type declaration
+        """
+        if self.idx_table is not None and self.idx_column is not None and self.idx_lists is not None and self.index_type == PGVectorIndexes.vector_cosine:
+            return (
+                f"CREATE INDEX {self.idx_table}_{ self.idx_column}_ivfflat_cosine_idx "
+                f"ON {self.idx_table} USING ivfflat ({ self.idx_column} vector_cosine_ops) "
+                f"WITH (lists = {self.idx_lists});"
+            )
+        return self.base_type
 
 # ============================================================================
 # Factory functions for parameterized types
@@ -79,6 +133,31 @@ class PostgresDataType:
     def vector(dimensions: int) -> PostgresSqlTypeDef:
         """Create a vector type with specific dimensions for pgvector."""
         return PostgresSqlTypeDef("vector", dimensions=dimensions)
+
+        # --- new index factories ---
+
+    @staticmethod
+    def ivfflat_cosine(table: str, column: str, lists: int = 100) -> PostgresSqlTypeDef:
+        """Generate SQL for an IVFFLAT index using cosine similarity."""
+        return PostgresSqlVectorTypeDef("vector_cosine", idx_table=table, idx_column=column, idx_lists=lists, index_type=PGVectorIndexes.vector_cosine)
+
+    # @staticmethod
+    # def ivfflat_l2(table: str, column: str, lists: int = 100) -> str:
+    #     """Generate SQL for an IVFFLAT index using L2 distance."""
+    #     return (
+    #         f"CREATE INDEX {table}_{column}_ivfflat_l2_idx "
+    #         f"ON {table} USING ivfflat ({column} vector_l2_ops) "
+    #         f"WITH (lists = {lists});"
+    #     )
+
+    # @staticmethod
+    # def ivfflat_inner_product(table: str, column: str, lists: int = 100) -> str:
+    #     """Generate SQL for an IVFFLAT index using inner product similarity."""
+    #     return (
+    #         f"CREATE INDEX {table}_{column}_ivfflat_ip_idx "
+    #         f"ON {table} USING ivfflat ({column} vector_ip_ops) "
+    #         f"WITH (lists = {lists});"
+    #     )
 
 
 class PostgresSqlConnector(SqlConnector):
@@ -937,3 +1016,18 @@ class PostgresSqlConnector(SqlConnector):
         """
         query = f"ALTER TABLE {self.schema}.{table_name} ALTER COLUMN {column_name} TYPE {type.to_sql()};"
         self.exec_sql(query)
+
+    def create_index_column(self, table_name: str, column_name: str, index: PostgresSqlTypeDef):
+        """
+        Create an index on a specific column for a given table.
+
+        Supports pgvector (ivfflat + cosine_ops) and can be extended for others.
+
+        Example:
+            create_index_column('my_table', 'embedding', PostgresIndex.ivfflat_cosine(lists=100))
+        """
+        # Resolve the SQL fragment for the index
+        index_sql = index.to_sql()
+
+        self.exec_sql(index_sql)
+

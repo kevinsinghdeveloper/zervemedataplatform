@@ -16,40 +16,7 @@ class SqlType:
 
     Provides a common interface for representing SQL types with optional parameters.
     Subclasses should implement database-specific type systems (e.g., PostgresSqlType, MySqlType).
-
-    Immutable (frozen) to allow use in sets/dicts and ensure consistency.
-
-    Attributes:
-        base_type: The base SQL type name (e.g., 'INTEGER', 'VARCHAR', 'vector')
-        length: Optional length parameter (e.g., VARCHAR(255))
-        precision: Optional precision parameter (e.g., NUMERIC(10,2))
-        scale: Optional scale parameter (e.g., NUMERIC(10,2))
-        dimensions: Optional dimensions parameter (e.g., vector(1536) for pgvector)
     """
-    base_type: str
-    length: Optional[int] = None
-    precision: Optional[int] = None
-    scale: Optional[int] = None
-    dimensions: Optional[int] = None
-
-    def to_sql(self) -> str:
-        """
-        Generate the SQL type string for this type.
-
-        Subclasses may override this method for database-specific formatting.
-
-        Returns:
-            str: Valid SQL type declaration
-        """
-        if self.dimensions is not None:
-            return f"{self.base_type}({self.dimensions})"
-        elif self.length is not None:
-            return f"{self.base_type}({self.length})"
-        elif self.precision is not None and self.scale is not None:
-            return f"{self.base_type}({self.precision},{self.scale})"
-        elif self.precision is not None:
-            return f"{self.base_type}({self.precision})"
-        return self.base_type
 
     def __str__(self) -> str:
         """String representation returns SQL type"""
@@ -206,4 +173,8 @@ class SqlConnector(ABC):
             column_name: Name of the column to cast
             type: SQL type instance (e.g., PostgresSqlType for PostgreSQL connectors)
         """
+        pass
+
+    @abstractmethod
+    def create_index_column(self, table_name: str, column_name: str, index: SqlType):
         pass

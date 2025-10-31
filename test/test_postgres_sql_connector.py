@@ -412,6 +412,16 @@ class TestPostgresSqlConnector(unittest.TestCase):
         self.assertEqual(str(result), 'JSONB')
         self.assertEqual(result.base_type, 'JSONB')
 
+    # Tests for create index
+    @patch.object(PostgresSqlConnector, 'exec_sql')
+    def test_create_cosine_index(self, mock_exec_sql):
+        """Test cast_column generates correct SQL for simple type"""
+        self.connector.create_index_column("users", "index", PostgresDataType.ivfflat_cosine(table="users", column="id", lists=100))
+
+        # Verify exec_sql was called with correct ALTER TABLE statement
+        mock_exec_sql.assert_called_once()
+        call_args = mock_exec_sql.call_args[0][0]
+
     # Tests for cast_column method
     @patch.object(PostgresSqlConnector, 'exec_sql')
     def test_cast_column_to_integer(self, mock_exec_sql):

@@ -14,7 +14,13 @@ from zervedataplatform.utils.Utility import Utility
 
 
 class PGVectorIndexes(Enum):
-    vector_cosine = "vector_cosine"
+    """PostgreSQL pgvector index types"""
+    IVFFLAT_COSINE = "ivfflat_cosine"
+    IVFFLAT_L2 = "ivfflat_l2"
+    IVFFLAT_IP = "ivfflat_ip"  # Inner product
+    HNSW_COSINE = "hnsw_cosine"
+    HNSW_L2 = "hnsw_l2"
+    HNSW_IP = "hnsw_ip"
 
 @dataclass(frozen=True)
 class PostgresSqlTypeDef(SqlType):
@@ -52,35 +58,102 @@ class PostgresSqlTypeDef(SqlType):
 @dataclass(frozen=True)
 class PostgresSqlVectorTypeDef(SqlType):
     """
-    Represents a PostgreSQL data type with optional parameters.
+    Represents a PostgreSQL vector index definition for pgvector.
 
-    Inherits from SqlType base class to provide PostgreSQL-specific type system.
-    Supports simple types (INTEGER, TEXT) and parameterized types (VARCHAR(255), VECTOR(1536)).
+    Supports IVFFlat and HNSW indexes with different distance operators.
 
+    Attributes:
+        base_type: Index type identifier
+        index_type: PGVectorIndexes enum value
+        idx_table: Table name for the index
+        idx_column: Column name for the index
+        idx_lists: Number of inverted lists (IVFFlat only)
+        idx_m: Max number of connections per layer (HNSW only)
+        idx_ef_construction: Size of dynamic candidate list for construction (HNSW only)
     """
     base_type: str
-
-    # index_stuff
     index_type: PGVectorIndexes
     idx_table: Optional[str] = None
     idx_column: Optional[str] = None
+
+    # IVFFlat parameters
     idx_lists: Optional[int] = None
+
+    # HNSW parameters
+    idx_m: Optional[int] = None
+    idx_ef_construction: Optional[int] = None
 
     def to_sql(self) -> str:
         """
-        Generate the SQL type string for this type.
-
-        Subclasses may override this method for database-specific formatting.
+        Generate the CREATE INDEX SQL statement.
 
         Returns:
-            str: Valid SQL type declaration
+            str: Valid PostgreSQL CREATE INDEX statement for pgvector
         """
-        if self.idx_table is not None and self.idx_column is not None and self.idx_lists is not None and self.index_type == PGVectorIndexes.vector_cosine:
+        if not self.idx_table or not self.idx_column:
+            return self.base_type
+
+        # Determine index method and operator class
+        if self.index_type == PGVectorIndexes.IVFFLAT_COSINE:
+            index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_cosine_idx"
+            params = f"WITH (lists = {self.idx_lists or 100})"
             return (
-                f"CREATE INDEX {self.idx_table}_{ self.idx_column}_ivfflat_cosine_idx "
-                f"ON {self.idx_table} USING ivfflat ({ self.idx_column} vector_cosine_ops) "
-                f"WITH (lists = {self.idx_lists});"
+                f"CREATE INDEX {index_name} "
+                f"ON {self.idx_table} USING ivfflat ({self.idx_column} vector_cosine_ops) "
+                f"{params};"
             )
+
+        elif self.index_type == PGVectorIndexes.IVFFLAT_L2:
+            index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_l2_idx"
+            params = f"WITH (lists = {self.idx_lists or 100})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {self.idx_table} USING ivfflat ({self.idx_column} vector_l2_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.IVFFLAT_IP:
+            index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_ip_idx"
+            params = f"WITH (lists = {self.idx_lists or 100})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {self.idx_table} USING ivfflat ({self.idx_column} vector_ip_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.HNSW_COSINE:
+            index_name = f"{self.idx_table}_{self.idx_column}_hnsw_cosine_idx"
+            m = self.idx_m or 16
+            ef = self.idx_ef_construction or 64
+            params = f"WITH (m = {m}, ef_construction = {ef})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {self.idx_table} USING hnsw ({self.idx_column} vector_cosine_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.HNSW_L2:
+            index_name = f"{self.idx_table}_{self.idx_column}_hnsw_l2_idx"
+            m = self.idx_m or 16
+            ef = self.idx_ef_construction or 64
+            params = f"WITH (m = {m}, ef_construction = {ef})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {self.idx_table} USING hnsw ({self.idx_column} vector_l2_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.HNSW_IP:
+            index_name = f"{self.idx_table}_{self.idx_column}_hnsw_ip_idx"
+            m = self.idx_m or 16
+            ef = self.idx_ef_construction or 64
+            params = f"WITH (m = {m}, ef_construction = {ef})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {self.idx_table} USING hnsw ({self.idx_column} vector_ip_ops) "
+                f"{params};"
+            )
+
         return self.base_type
 
 # ============================================================================
@@ -134,21 +207,145 @@ class PostgresDataType:
         """Create a vector type with specific dimensions for pgvector."""
         return PostgresSqlTypeDef("vector", dimensions=dimensions)
 
-        # --- new index factories ---
+    # ============================================================================
+    # pgvector Index Factories
+    # ============================================================================
 
     @staticmethod
-    def ivfflat_cosine(table: str, column: str, lists: int = 100) -> PostgresSqlTypeDef:
-        """Generate SQL for an IVFFLAT index using cosine similarity."""
-        return PostgresSqlVectorTypeDef("vector_cosine", idx_table=table, idx_column=column, idx_lists=lists, index_type=PGVectorIndexes.vector_cosine)
+    def ivfflat_cosine(table: str, column: str, lists: int = 100) -> PostgresSqlVectorTypeDef:
+        """
+        Create an IVFFlat index using cosine distance for vector similarity search.
 
-    # @staticmethod
-    # def ivfflat_l2(table: str, column: str, lists: int = 100) -> str:
-    #     """Generate SQL for an IVFFLAT index using L2 distance."""
-    #     return (
-    #         f"CREATE INDEX {table}_{column}_ivfflat_l2_idx "
-    #         f"ON {table} USING ivfflat ({column} vector_l2_ops) "
-    #         f"WITH (lists = {lists});"
-    #     )
+        IVFFlat is faster but less accurate than HNSW. Good for large datasets.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            lists: Number of inverted lists (default 100, recommended: rows/1000)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "ivfflat_cosine",
+            idx_table=table,
+            idx_column=column,
+            idx_lists=lists,
+            index_type=PGVectorIndexes.IVFFLAT_COSINE
+        )
+
+    @staticmethod
+    def ivfflat_l2(table: str, column: str, lists: int = 100) -> PostgresSqlVectorTypeDef:
+        """
+        Create an IVFFlat index using L2 (Euclidean) distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            lists: Number of inverted lists (default 100)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "ivfflat_l2",
+            idx_table=table,
+            idx_column=column,
+            idx_lists=lists,
+            index_type=PGVectorIndexes.IVFFLAT_L2
+        )
+
+    @staticmethod
+    def ivfflat_ip(table: str, column: str, lists: int = 100) -> PostgresSqlVectorTypeDef:
+        """
+        Create an IVFFlat index using inner product distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            lists: Number of inverted lists (default 100)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "ivfflat_ip",
+            idx_table=table,
+            idx_column=column,
+            idx_lists=lists,
+            index_type=PGVectorIndexes.IVFFLAT_IP
+        )
+
+    @staticmethod
+    def hnsw_cosine(table: str, column: str, m: int = 16, ef_construction: int = 64) -> PostgresSqlVectorTypeDef:
+        """
+        Create an HNSW index using cosine distance.
+
+        HNSW is more accurate but slower to build than IVFFlat. Better for smaller datasets.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            m: Max number of connections per layer (default 16, higher = better recall, more memory)
+            ef_construction: Size of dynamic candidate list for construction (default 64, higher = better quality)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "hnsw_cosine",
+            idx_table=table,
+            idx_column=column,
+            idx_m=m,
+            idx_ef_construction=ef_construction,
+            index_type=PGVectorIndexes.HNSW_COSINE
+        )
+
+    @staticmethod
+    def hnsw_l2(table: str, column: str, m: int = 16, ef_construction: int = 64) -> PostgresSqlVectorTypeDef:
+        """
+        Create an HNSW index using L2 (Euclidean) distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            m: Max number of connections per layer (default 16)
+            ef_construction: Size of dynamic candidate list for construction (default 64)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "hnsw_l2",
+            idx_table=table,
+            idx_column=column,
+            idx_m=m,
+            idx_ef_construction=ef_construction,
+            index_type=PGVectorIndexes.HNSW_L2
+        )
+
+    @staticmethod
+    def hnsw_ip(table: str, column: str, m: int = 16, ef_construction: int = 64) -> PostgresSqlVectorTypeDef:
+        """
+        Create an HNSW index using inner product distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            m: Max number of connections per layer (default 16)
+            ef_construction: Size of dynamic candidate list for construction (default 64)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "hnsw_ip",
+            idx_table=table,
+            idx_column=column,
+            idx_m=m,
+            idx_ef_construction=ef_construction,
+            index_type=PGVectorIndexes.HNSW_IP
+        )
 
     # @staticmethod
     # def ivfflat_inner_product(table: str, column: str, lists: int = 100) -> str:
@@ -1017,17 +1214,21 @@ class PostgresSqlConnector(SqlConnector):
         query = f"ALTER TABLE {self.schema}.{table_name} ALTER COLUMN {column_name} TYPE {type.to_sql()};"
         self.exec_sql(query)
 
-    def create_index_column(self, table_name: str, column_name: str, index: PostgresSqlTypeDef):
+    def create_index_column(self, index: PostgresSqlVectorTypeDef):
         """
         Create an index on a specific column for a given table.
 
-        Supports pgvector (ivfflat + cosine_ops) and can be extended for others.
+        The index object contains all necessary information (table, column, type, parameters).
+        Supports pgvector indexes (ivfflat with cosine/L2 distance operators).
+
+        Args:
+            index: PostgresSqlVectorTypeDef instance containing index configuration
 
         Example:
-            create_index_column('my_table', 'embedding', PostgresIndex.ivfflat_cosine(lists=100))
+            >>> # Create ivfflat index with cosine similarity
+            >>> index = PostgresDataType.ivfflat_cosine('products', 'embedding', lists=100)
+            >>> connector.create_index_column(index)
         """
-        # Resolve the SQL fragment for the index
         index_sql = index.to_sql()
-
         self.exec_sql(index_sql)
 

@@ -358,3 +358,12 @@ class SparkSQLConnector(SqlConnector):
             type: SQL type instance (e.g., PostgresSqlType)
         """
         self.__helper_db_connector.cast_column(table_name, column_name, type)
+
+    def create_index_column(self, index: Any):
+        """
+        Create an index on a column by delegating to helper connector.
+
+        Args:
+            index: Index definition object (e.g., PostgresSqlVectorTypeDef)
+        """
+        self.__helper_db_connector.create_index_column(index)

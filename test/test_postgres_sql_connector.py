@@ -412,15 +412,97 @@ class TestPostgresSqlConnector(unittest.TestCase):
         self.assertEqual(str(result), 'JSONB')
         self.assertEqual(result.base_type, 'JSONB')
 
-    # Tests for create index
+    # Tests for create_index_column method
     @patch.object(PostgresSqlConnector, 'exec_sql')
-    def test_create_cosine_index(self, mock_exec_sql):
-        """Test cast_column generates correct SQL for simple type"""
-        self.connector.create_index_column("users", "index", PostgresDataType.ivfflat_cosine(table="users", column="id", lists=100))
+    def test_create_index_ivfflat_cosine(self, mock_exec_sql):
+        """Test create_index_column generates correct SQL for IVFFlat cosine index"""
+        index = PostgresDataType.ivfflat_cosine(table="products", column="embedding", lists=100)
+        self.connector.create_index_column(index)
 
-        # Verify exec_sql was called with correct ALTER TABLE statement
+        # Verify exec_sql was called with correct CREATE INDEX statement
         mock_exec_sql.assert_called_once()
         call_args = mock_exec_sql.call_args[0][0]
+        self.assertIn("CREATE INDEX", call_args)
+        self.assertIn("products_embedding_ivfflat_cosine_idx", call_args)
+        self.assertIn("ON products", call_args)
+        self.assertIn("USING ivfflat", call_args)
+        self.assertIn("embedding vector_cosine_ops", call_args)
+        self.assertIn("WITH (lists = 100)", call_args)
+
+    @patch.object(PostgresSqlConnector, 'exec_sql')
+    def test_create_index_ivfflat_l2(self, mock_exec_sql):
+        """Test create_index_column generates correct SQL for IVFFlat L2 index"""
+        index = PostgresDataType.ivfflat_l2(table="products", column="embedding", lists=150)
+        self.connector.create_index_column(index)
+
+        mock_exec_sql.assert_called_once()
+        call_args = mock_exec_sql.call_args[0][0]
+        self.assertIn("CREATE INDEX", call_args)
+        self.assertIn("products_embedding_ivfflat_l2_idx", call_args)
+        self.assertIn("ON products", call_args)
+        self.assertIn("USING ivfflat", call_args)
+        self.assertIn("embedding vector_l2_ops", call_args)
+        self.assertIn("WITH (lists = 150)", call_args)
+
+    @patch.object(PostgresSqlConnector, 'exec_sql')
+    def test_create_index_ivfflat_ip(self, mock_exec_sql):
+        """Test create_index_column generates correct SQL for IVFFlat inner product index"""
+        index = PostgresDataType.ivfflat_ip(table="products", column="embedding", lists=200)
+        self.connector.create_index_column(index)
+
+        mock_exec_sql.assert_called_once()
+        call_args = mock_exec_sql.call_args[0][0]
+        self.assertIn("CREATE INDEX", call_args)
+        self.assertIn("products_embedding_ivfflat_ip_idx", call_args)
+        self.assertIn("ON products", call_args)
+        self.assertIn("USING ivfflat", call_args)
+        self.assertIn("embedding vector_ip_ops", call_args)
+        self.assertIn("WITH (lists = 200)", call_args)
+
+    @patch.object(PostgresSqlConnector, 'exec_sql')
+    def test_create_index_hnsw_cosine(self, mock_exec_sql):
+        """Test create_index_column generates correct SQL for HNSW cosine index"""
+        index = PostgresDataType.hnsw_cosine(table="products", column="embedding", m=16, ef_construction=64)
+        self.connector.create_index_column(index)
+
+        mock_exec_sql.assert_called_once()
+        call_args = mock_exec_sql.call_args[0][0]
+        self.assertIn("CREATE INDEX", call_args)
+        self.assertIn("products_embedding_hnsw_cosine_idx", call_args)
+        self.assertIn("ON products", call_args)
+        self.assertIn("USING hnsw", call_args)
+        self.assertIn("embedding vector_cosine_ops", call_args)
+        self.assertIn("WITH (m = 16, ef_construction = 64)", call_args)
+
+    @patch.object(PostgresSqlConnector, 'exec_sql')
+    def test_create_index_hnsw_l2(self, mock_exec_sql):
+        """Test create_index_column generates correct SQL for HNSW L2 index"""
+        index = PostgresDataType.hnsw_l2(table="products", column="embedding", m=24, ef_construction=128)
+        self.connector.create_index_column(index)
+
+        mock_exec_sql.assert_called_once()
+        call_args = mock_exec_sql.call_args[0][0]
+        self.assertIn("CREATE INDEX", call_args)
+        self.assertIn("products_embedding_hnsw_l2_idx", call_args)
+        self.assertIn("ON products", call_args)
+        self.assertIn("USING hnsw", call_args)
+        self.assertIn("embedding vector_l2_ops", call_args)
+        self.assertIn("WITH (m = 24, ef_construction = 128)", call_args)
+
+    @patch.object(PostgresSqlConnector, 'exec_sql')
+    def test_create_index_hnsw_ip(self, mock_exec_sql):
+        """Test create_index_column generates correct SQL for HNSW inner product index"""
+        index = PostgresDataType.hnsw_ip(table="products", column="embedding", m=32, ef_construction=256)
+        self.connector.create_index_column(index)
+
+        mock_exec_sql.assert_called_once()
+        call_args = mock_exec_sql.call_args[0][0]
+        self.assertIn("CREATE INDEX", call_args)
+        self.assertIn("products_embedding_hnsw_ip_idx", call_args)
+        self.assertIn("ON products", call_args)
+        self.assertIn("USING hnsw", call_args)
+        self.assertIn("embedding vector_ip_ops", call_args)
+        self.assertIn("WITH (m = 32, ef_construction = 256)", call_args)
 
     # Tests for cast_column method
     @patch.object(PostgresSqlConnector, 'exec_sql')

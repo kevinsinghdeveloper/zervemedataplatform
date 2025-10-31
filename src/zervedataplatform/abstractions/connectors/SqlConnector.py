@@ -176,5 +176,12 @@ class SqlConnector(ABC):
         pass
 
     @abstractmethod
-    def create_index_column(self, table_name: str, column_name: str, index: SqlType):
+    def create_index_column(self, index: Any):
+        """
+        Create an index on a column.
+
+        Args:
+            index: Index definition object containing table, column, and index configuration
+                   (e.g., PostgresSqlVectorTypeDef for PostgreSQL vector indexes)
+        """
         pass

@@ -98,7 +98,7 @@ class PostgresSqlConnector(SqlConnector):
                 password=self._config["password"],
                 host=self._config["host"],
                 port=self._config["port"],
-                options=self._config.get("options", "")
+                options=self._config.get("options", f"-c search_path={self.schema}")
             )
             cur = conn.cursor()
             return conn, cur

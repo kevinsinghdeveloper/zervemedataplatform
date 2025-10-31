@@ -60,7 +60,7 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
                 from sentence_transformers import SentenceTransformer
                 self.__model = SentenceTransformer(self.__model_name)
 
-                self.__dimensions = self.__model.truncate_dim
+                self.__dimensions = self.__model.get_sentence_embedding_dimension()
 
                 Utility.log(f"Successfully configured SentenceTransformer model: {self.__model_name}")
 

@@ -424,7 +424,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
         call_args = mock_exec_sql.call_args[0][0]
         self.assertIn("CREATE INDEX", call_args)
         self.assertIn("products_embedding_ivfflat_cosine_idx", call_args)
-        self.assertIn("ON products", call_args)
+        self.assertIn("ON public.products", call_args)
         self.assertIn("USING ivfflat", call_args)
         self.assertIn("embedding vector_cosine_ops", call_args)
         self.assertIn("WITH (lists = 100)", call_args)
@@ -439,7 +439,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
         call_args = mock_exec_sql.call_args[0][0]
         self.assertIn("CREATE INDEX", call_args)
         self.assertIn("products_embedding_ivfflat_l2_idx", call_args)
-        self.assertIn("ON products", call_args)
+        self.assertIn("ON public.products", call_args)
         self.assertIn("USING ivfflat", call_args)
         self.assertIn("embedding vector_l2_ops", call_args)
         self.assertIn("WITH (lists = 150)", call_args)
@@ -454,7 +454,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
         call_args = mock_exec_sql.call_args[0][0]
         self.assertIn("CREATE INDEX", call_args)
         self.assertIn("products_embedding_ivfflat_ip_idx", call_args)
-        self.assertIn("ON products", call_args)
+        self.assertIn("ON public.products", call_args)
         self.assertIn("USING ivfflat", call_args)
         self.assertIn("embedding vector_ip_ops", call_args)
         self.assertIn("WITH (lists = 200)", call_args)
@@ -469,7 +469,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
         call_args = mock_exec_sql.call_args[0][0]
         self.assertIn("CREATE INDEX", call_args)
         self.assertIn("products_embedding_hnsw_cosine_idx", call_args)
-        self.assertIn("ON products", call_args)
+        self.assertIn("ON public.products", call_args)
         self.assertIn("USING hnsw", call_args)
         self.assertIn("embedding vector_cosine_ops", call_args)
         self.assertIn("WITH (m = 16, ef_construction = 64)", call_args)
@@ -484,7 +484,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
         call_args = mock_exec_sql.call_args[0][0]
         self.assertIn("CREATE INDEX", call_args)
         self.assertIn("products_embedding_hnsw_l2_idx", call_args)
-        self.assertIn("ON products", call_args)
+        self.assertIn("ON public.products", call_args)
         self.assertIn("USING hnsw", call_args)
         self.assertIn("embedding vector_l2_ops", call_args)
         self.assertIn("WITH (m = 24, ef_construction = 128)", call_args)
@@ -499,7 +499,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
         call_args = mock_exec_sql.call_args[0][0]
         self.assertIn("CREATE INDEX", call_args)
         self.assertIn("products_embedding_hnsw_ip_idx", call_args)
-        self.assertIn("ON products", call_args)
+        self.assertIn("ON public.products", call_args)
         self.assertIn("USING hnsw", call_args)
         self.assertIn("embedding vector_ip_ops", call_args)
         self.assertIn("WITH (m = 32, ef_construction = 256)", call_args)

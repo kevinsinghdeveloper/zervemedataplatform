@@ -67,6 +67,7 @@ class PostgresSqlVectorTypeDef(SqlType):
         index_type: PGVectorIndexes enum value
         idx_table: Table name for the index
         idx_column: Column name for the index
+        idx_schema: Schema name for the index (set by connector, defaults to None)
         idx_lists: Number of inverted lists (IVFFlat only)
         idx_m: Max number of connections per layer (HNSW only)
         idx_ef_construction: Size of dynamic candidate list for construction (HNSW only)
@@ -75,6 +76,7 @@ class PostgresSqlVectorTypeDef(SqlType):
     index_type: PGVectorIndexes
     idx_table: Optional[str] = None
     idx_column: Optional[str] = None
+    idx_schema: Optional[str] = None
 
     # IVFFlat parameters
     idx_lists: Optional[int] = None
@@ -94,12 +96,14 @@ class PostgresSqlVectorTypeDef(SqlType):
             return self.base_type
 
         # Determine index method and operator class
+        schema = self.idx_schema or "public"
+
         if self.index_type == PGVectorIndexes.IVFFLAT_COSINE:
             index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_cosine_idx"
             params = f"WITH (lists = {self.idx_lists or 100})"
             return (
                 f"CREATE INDEX {index_name} "
-                f"ON {self.idx_table} USING ivfflat ({self.idx_column} vector_cosine_ops) "
+                f"ON {schema}.{self.idx_table} USING ivfflat ({self.idx_column} vector_cosine_ops) "
                 f"{params};"
             )
 
@@ -108,7 +112,7 @@ class PostgresSqlVectorTypeDef(SqlType):
             params = f"WITH (lists = {self.idx_lists or 100})"
             return (
                 f"CREATE INDEX {index_name} "
-                f"ON {self.idx_table} USING ivfflat ({self.idx_column} vector_l2_ops) "
+                f"ON {schema}.{self.idx_table} USING ivfflat ({self.idx_column} vector_l2_ops) "
                 f"{params};"
             )
 
@@ -117,7 +121,7 @@ class PostgresSqlVectorTypeDef(SqlType):
             params = f"WITH (lists = {self.idx_lists or 100})"
             return (
                 f"CREATE INDEX {index_name} "
-                f"ON {self.idx_table} USING ivfflat ({self.idx_column} vector_ip_ops) "
+                f"ON {schema}.{self.idx_table} USING ivfflat ({self.idx_column} vector_ip_ops) "
                 f"{params};"
             )
 
@@ -128,7 +132,7 @@ class PostgresSqlVectorTypeDef(SqlType):
             params = f"WITH (m = {m}, ef_construction = {ef})"
             return (
                 f"CREATE INDEX {index_name} "
-                f"ON {self.idx_table} USING hnsw ({self.idx_column} vector_cosine_ops) "
+                f"ON {schema}.{self.idx_table} USING hnsw ({self.idx_column} vector_cosine_ops) "
                 f"{params};"
             )
 
@@ -139,7 +143,7 @@ class PostgresSqlVectorTypeDef(SqlType):
             params = f"WITH (m = {m}, ef_construction = {ef})"
             return (
                 f"CREATE INDEX {index_name} "
-                f"ON {self.idx_table} USING hnsw ({self.idx_column} vector_l2_ops) "
+                f"ON {schema}.{self.idx_table} USING hnsw ({self.idx_column} vector_l2_ops) "
                 f"{params};"
             )
 
@@ -150,7 +154,7 @@ class PostgresSqlVectorTypeDef(SqlType):
             params = f"WITH (m = {m}, ef_construction = {ef})"
             return (
                 f"CREATE INDEX {index_name} "
-                f"ON {self.idx_table} USING hnsw ({self.idx_column} vector_ip_ops) "
+                f"ON {schema}.{self.idx_table} USING hnsw ({self.idx_column} vector_ip_ops) "
                 f"{params};"
             )
 
@@ -225,6 +229,9 @@ class PostgresDataType:
 
         Returns:
             PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
         """
         return PostgresSqlVectorTypeDef(
             "ivfflat_cosine",
@@ -246,6 +253,9 @@ class PostgresDataType:
 
         Returns:
             PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
         """
         return PostgresSqlVectorTypeDef(
             "ivfflat_l2",
@@ -267,6 +277,9 @@ class PostgresDataType:
 
         Returns:
             PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
         """
         return PostgresSqlVectorTypeDef(
             "ivfflat_ip",
@@ -291,6 +304,9 @@ class PostgresDataType:
 
         Returns:
             PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
         """
         return PostgresSqlVectorTypeDef(
             "hnsw_cosine",
@@ -314,6 +330,9 @@ class PostgresDataType:
 
         Returns:
             PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
         """
         return PostgresSqlVectorTypeDef(
             "hnsw_l2",
@@ -337,6 +356,9 @@ class PostgresDataType:
 
         Returns:
             PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
         """
         return PostgresSqlVectorTypeDef(
             "hnsw_ip",
@@ -1220,6 +1242,7 @@ class PostgresSqlConnector(SqlConnector):
 
         The index object contains all necessary information (table, column, type, parameters).
         Supports pgvector indexes (ivfflat with cosine/L2 distance operators).
+        The connector's schema is automatically injected into the index.
 
         Args:
             index: PostgresSqlVectorTypeDef instance containing index configuration
@@ -1229,6 +1252,12 @@ class PostgresSqlConnector(SqlConnector):
             >>> index = PostgresDataType.ivfflat_cosine('products', 'embedding', lists=100)
             >>> connector.create_index_column(index)
         """
+        from dataclasses import replace
+
+        # Inject the connector's schema into the index if not already set
+        if index.idx_schema is None:
+            index = replace(index, idx_schema=self.schema)
+
         index_sql = index.to_sql()
         self.exec_sql(index_sql)
 

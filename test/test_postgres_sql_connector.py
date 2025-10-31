@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 from typing import Optional
 
-from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresSqlConnector, PostgresDataType, PostgresSqlType
+from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresSqlConnector, PostgresDataType, PostgresSqlTypeDef
 
 
 class TestPostgresSqlConnector(unittest.TestCase):
@@ -282,17 +282,17 @@ class TestPostgresSqlConnector(unittest.TestCase):
         self.assertEqual(str(PostgresDataType.JSON), 'JSON')
 
     def test_postgres_data_type_enum_vector(self):
-        """Test PostgresDataType constants are PostgresSqlType instances"""
+        """Test PostgresDataType constants are PostgresSqlTypeDef instances"""
         # PostgresDataType.VECTOR is now a constant, not an enum
         # It's not typically used directly - use PostgresDataType.vector(dims) instead
         # But check it exists for backwards compatibility
-        self.assertIsInstance(PostgresDataType.VECTOR, PostgresSqlType)
+        self.assertIsInstance(PostgresDataType.VECTOR, PostgresSqlTypeDef)
 
     def test_postgres_data_type_vector_with_dimensions(self):
         """Test PostgresDataType.vector() creates dimensioned vector type"""
         # Common embedding dimensions
         result_384 = PostgresDataType.vector(384)
-        self.assertIsInstance(result_384, PostgresSqlType)
+        self.assertIsInstance(result_384, PostgresSqlTypeDef)
         self.assertEqual(str(result_384), 'vector(384)')  # MiniLM
 
         result_768 = PostgresDataType.vector(768)
@@ -308,49 +308,49 @@ class TestPostgresSqlConnector(unittest.TestCase):
     def test_get_sql_type_with_int(self):
         """Test _get_sql_type maps int to INTEGER"""
         result = self.connector._get_sql_type(int)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'INTEGER')
 
     def test_get_sql_type_with_str(self):
         """Test _get_sql_type maps str to VARCHAR"""
         result = self.connector._get_sql_type(str)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'VARCHAR')
 
     def test_get_sql_type_with_float(self):
         """Test _get_sql_type maps float to FLOAT"""
         result = self.connector._get_sql_type(float)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'FLOAT')
 
     def test_get_sql_type_with_bool(self):
         """Test _get_sql_type maps bool to BOOLEAN"""
         result = self.connector._get_sql_type(bool)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'BOOLEAN')
 
     def test_get_sql_type_with_dict(self):
         """Test _get_sql_type maps dict to JSONB"""
         result = self.connector._get_sql_type(dict)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'JSONB')
 
     def test_get_sql_type_with_datetime(self):
         """Test _get_sql_type maps datetime to TIMESTAMP"""
         result = self.connector._get_sql_type(datetime)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'TIMESTAMP')
 
     def test_get_sql_type_with_optional_int(self):
         """Test _get_sql_type handles Optional[int] type hint"""
         result = self.connector._get_sql_type(Optional[int])
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'INTEGER')
 
     def test_get_sql_type_with_optional_str(self):
         """Test _get_sql_type handles Optional[str] type hint"""
         result = self.connector._get_sql_type(Optional[str])
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'VARCHAR')
 
     def test_get_sql_type_with_unknown_type(self):
@@ -359,20 +359,20 @@ class TestPostgresSqlConnector(unittest.TestCase):
             pass
 
         result = self.connector._get_sql_type(CustomType)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'VARCHAR')
 
     def test_get_sql_type_with_list(self):
         """Test _get_sql_type maps list to JSONB (can store arrays or vectors)"""
         result = self.connector._get_sql_type(list)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'JSONB')
 
     def test_get_sql_type_with_optional_list(self):
         """Test _get_sql_type handles Optional[list] type hint"""
         from typing import List
         result = self.connector._get_sql_type(Optional[List])
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'JSONB')
 
     def test_get_sql_type_jsonb_string_matching(self):
@@ -383,7 +383,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
                 return "<class 'jsonb'>"
 
         result = self.connector._get_sql_type(JSONBType())
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'JSONB')
 
     def test_get_sql_type_vector_string_matching(self):
@@ -394,21 +394,21 @@ class TestPostgresSqlConnector(unittest.TestCase):
                 return "<class 'vector'>"
 
         result = self.connector._get_sql_type(VectorType())
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'vector')
 
     def test_get_sql_type_uses_enum(self):
-        """Test that _get_sql_type returns PostgresSqlType instances"""
-        # Verify it's returning PostgresSqlType instance
+        """Test that _get_sql_type returns PostgresSqlTypeDef instances"""
+        # Verify it's returning PostgresSqlTypeDef instance
         result = self.connector._get_sql_type(int)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(result.base_type, 'INTEGER')
         self.assertEqual(str(result), 'INTEGER')
 
     def test_get_sql_type_dict_maps_to_jsonb(self):
         """Test _get_sql_type maps dict to JSONB (not JSON)"""
         result = self.connector._get_sql_type(dict)
-        self.assertIsInstance(result, PostgresSqlType)
+        self.assertIsInstance(result, PostgresSqlTypeDef)
         self.assertEqual(str(result), 'JSONB')
         self.assertEqual(result.base_type, 'JSONB')
 
@@ -416,9 +416,8 @@ class TestPostgresSqlConnector(unittest.TestCase):
     @patch.object(PostgresSqlConnector, 'exec_sql')
     def test_cast_column_to_integer(self, mock_exec_sql):
         """Test cast_column generates correct SQL for simple type"""
-        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import INTEGER
 
-        self.connector.cast_column("users", "age", INTEGER)
+        self.connector.cast_column("users", "age", PostgresDataType.INTEGER)
 
         # Verify exec_sql was called with correct ALTER TABLE statement
         mock_exec_sql.assert_called_once()
@@ -431,7 +430,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
     @patch.object(PostgresSqlConnector, 'exec_sql')
     def test_cast_column_with_parameterized_type(self, mock_exec_sql):
         """Test cast_column generates correct SQL for parameterized type"""
-        varchar_type = PostgresSqlType("VARCHAR", length=255)
+        varchar_type = PostgresSqlTypeDef("VARCHAR", length=255)
 
         self.connector.cast_column("products", "name", varchar_type)
 
@@ -461,9 +460,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
     @patch.object(PostgresSqlConnector, 'exec_sql')
     def test_cast_column_to_jsonb(self, mock_exec_sql):
         """Test cast_column generates correct SQL for JSONB type"""
-        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import JSONB
-
-        self.connector.cast_column("events", "metadata", JSONB)
+        self.connector.cast_column("events", "metadata", PostgresDataType.JSONB)
 
         # Verify exec_sql was called with correct ALTER TABLE statement
         mock_exec_sql.assert_called_once()
@@ -476,7 +473,7 @@ class TestPostgresSqlConnector(unittest.TestCase):
     @patch.object(PostgresSqlConnector, 'exec_sql')
     def test_cast_column_with_numeric_precision(self, mock_exec_sql):
         """Test cast_column generates correct SQL for NUMERIC with precision and scale"""
-        numeric_type = PostgresSqlType("NUMERIC", precision=10, scale=2)
+        numeric_type = PostgresSqlTypeDef("NUMERIC", precision=10, scale=2)
 
         self.connector.cast_column("products", "price", numeric_type)
 
@@ -491,14 +488,13 @@ class TestPostgresSqlConnector(unittest.TestCase):
     @patch.object(PostgresSqlConnector, 'exec_sql')
     def test_cast_column_with_custom_schema(self, mock_exec_sql):
         """Test cast_column respects custom schema"""
-        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import INTEGER
 
         # Create connector with custom schema
         custom_config = self.mock_db_config.copy()
         custom_config['schema'] = 'analytics'
         connector = PostgresSqlConnector(custom_config)
 
-        connector.cast_column("metrics", "count", INTEGER)
+        connector.cast_column("metrics", "count", PostgresDataType.INTEGER)
 
         # Verify exec_sql was called with custom schema
         mock_exec_sql.assert_called_once()

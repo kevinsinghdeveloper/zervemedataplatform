@@ -327,22 +327,22 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         # Test basic type mappings (now delegated to helper connector)
         # These should return PostgresSqlType instances from the helper
-        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresSqlType
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresSqlTypeDef
 
         result_int = connector._get_sql_type(int)
-        self.assertIsInstance(result_int, PostgresSqlType)
+        self.assertIsInstance(result_int, PostgresSqlTypeDef)
         self.assertEqual(str(result_int), "INTEGER")
 
         result_float = connector._get_sql_type(float)
-        self.assertIsInstance(result_float, PostgresSqlType)
+        self.assertIsInstance(result_float, PostgresSqlTypeDef)
         self.assertEqual(str(result_float), "FLOAT")  # PostgresSqlConnector uses FLOAT
 
         result_str = connector._get_sql_type(str)
-        self.assertIsInstance(result_str, PostgresSqlType)
+        self.assertIsInstance(result_str, PostgresSqlTypeDef)
         self.assertEqual(str(result_str), "VARCHAR")  # PostgresSqlConnector uses VARCHAR
 
         result_bool = connector._get_sql_type(bool)
-        self.assertIsInstance(result_bool, PostgresSqlType)
+        self.assertIsInstance(result_bool, PostgresSqlTypeDef)
         self.assertEqual(str(result_bool), "BOOLEAN")
 
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')

@@ -207,5 +207,3 @@ class SqlConnector(ABC):
             type: SQL type instance (e.g., PostgresSqlType for PostgreSQL connectors)
         """
         pass
-
-

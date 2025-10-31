@@ -7,6 +7,7 @@ from pyspark.sql.functions import lit, concat_ws, col, coalesce, concat, array, 
 
 from zervedataplatform.connectors.cloud_storage_connectors.SparkCloudConnector import SparkCloudConnector
 from zervedataplatform.connectors.sql_connectors.SparkSqlConnector import SparkSQLConnector
+from zervedataplatform.abstractions.connectors.SqlConnector import SqlType
 from zervedataplatform.model_transforms.db.PipelineRunConfig import PipelineRunConfig
 from zervedataplatform.utils.Utility import Utility
 
@@ -145,6 +146,10 @@ class ETLUtilities:
                 df = df.withColumn(column_name, concat_ws(",", col(column_name)))
 
         return df
+
+    def cast_db_col(self, table_name: str, column_name: str, db_type: SqlType, use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        db_manager.cast_column(table_name, column_name, db_type)
 
     def add_column_to_spark_df(self, df, column_name: str, column_value: any):
         return df.withColumn(column_name, lit(column_value))

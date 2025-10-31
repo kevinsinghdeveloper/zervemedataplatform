@@ -93,7 +93,7 @@ class PostgresSqlConnector(SqlConnector):
         cur = None
         try:
             conn = psycopg2.connect(
-                dbname=self._config["dbname"],
+                dbname=self._config["database"],
                 user=self._config["user"],
                 password=self._config["password"],
                 host=self._config["host"],

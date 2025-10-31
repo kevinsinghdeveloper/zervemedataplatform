@@ -1062,6 +1062,222 @@ class TestETLUtilities(unittest.TestCase):
 
         spark.stop()
 
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cast_db_col_on_source_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cast_db_col casts column type on source database by default"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create a vector type for casting
+        vector_type = PostgresDataType.vector(1536)
+        etl_util.cast_db_col('products', 'embedding', vector_type)
+
+        # Verify source_db_manager was used
+        mock_source_sql.cast_column.assert_called_once_with('products', 'embedding', vector_type)
+        mock_dest_sql.cast_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cast_db_col_on_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cast_db_col casts column type on destination database when use_dest_db=True"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create a JSONB type for casting
+        jsonb_type = PostgresDataType.JSONB
+        etl_util.cast_db_col('analytics_data', 'metadata', jsonb_type, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.cast_column.assert_called_once_with('analytics_data', 'metadata', jsonb_type)
+        mock_source_sql.cast_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_ivfflat_cosine(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat cosine index on source database by default"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat cosine index
+        index = PostgresDataType.ivfflat_cosine(table='products', column='embedding', lists=100)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_dest_db_ivfflat_cosine(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat cosine index on destination database when use_dest_db=True"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat cosine index for destination DB
+        index = PostgresDataType.ivfflat_cosine(table='products', column='embedding', lists=150)
+        etl_util.create_index_col(index, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.create_index_column.assert_called_once_with(index)
+        mock_source_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_ivfflat_l2(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat L2 index on source database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat L2 index
+        index = PostgresDataType.ivfflat_l2(table='images', column='features_vector', lists=200)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_dest_db_hnsw_cosine(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates HNSW cosine index on destination database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an HNSW cosine index for destination DB
+        index = PostgresDataType.hnsw_cosine(table='documents', column='text_embedding', m=16, ef_construction=64)
+        etl_util.create_index_col(index, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.create_index_column.assert_called_once_with(index)
+        mock_source_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_hnsw_l2(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates HNSW L2 index on source database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an HNSW L2 index
+        index = PostgresDataType.hnsw_l2(table='videos', column='feature_embedding', m=24, ef_construction=128)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_dest_db_ivfflat_ip(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat inner product index on destination database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat inner product index for destination DB
+        index = PostgresDataType.ivfflat_ip(table='recommendations', column='user_embedding', lists=75)
+        etl_util.create_index_col(index, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.create_index_column.assert_called_once_with(index)
+        mock_source_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_hnsw_ip(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates HNSW inner product index on source database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an HNSW inner product index
+        index = PostgresDataType.hnsw_ip(table='search_results', column='query_embedding', m=32, ef_construction=256)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

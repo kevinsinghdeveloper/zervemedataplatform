@@ -151,6 +151,10 @@ class ETLUtilities:
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         db_manager.cast_column(table_name, column_name, db_type)
 
+    def create_index_col(self, db_type: SqlType, use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        db_manager.create_index_column(db_type)
+
     def add_column_to_spark_df(self, df, column_name: str, column_value: any):
         return df.withColumn(column_name, lit(column_value))
 

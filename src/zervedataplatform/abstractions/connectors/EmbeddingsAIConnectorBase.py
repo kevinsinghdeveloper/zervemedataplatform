@@ -22,3 +22,7 @@ class EmbeddingsAiConnectorBase(AIConnectorBase, ABC):
     @abstractmethod
     def embed_query(self, text: str):
         pass
+
+    @abstractmethod
+    def get_dimensions(self) -> Union[int | None]:
+        pass

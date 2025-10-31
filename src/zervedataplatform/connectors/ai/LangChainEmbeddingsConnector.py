@@ -35,6 +35,7 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
         self.__show_progress = False
         self.__base_url = None
         self.__timeout = 30
+        self.__dimensions = None
 
         self.configure_model()
 
@@ -58,6 +59,9 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
                     raise ValueError("sentence_transformers provider requires 'model_name'")
                 from sentence_transformers import SentenceTransformer
                 self.__model = SentenceTransformer(self.__model_name)
+
+                self.__dimensions = self.__model.truncate_dim()
+
                 Utility.log(f"Successfully configured SentenceTransformer model: {self.__model_name}")
 
             elif self.__provider == "openai":
@@ -71,6 +75,9 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
                     model=self.__model_name,
                     openai_api_key=api_key
                 )
+
+                self.__dimensions = self.__model.dimensions
+
                 Utility.log(f"Successfully configured OpenAI embeddings: {self.__model_name}")
 
             elif self.__provider == "huggingface":
@@ -80,20 +87,21 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
                 self.__model = HuggingFaceEmbeddings(
                     model_name=self.__model_name
                 )
+                self.__dimensions = self.__model.dimensions
                 Utility.log(f"Successfully configured HuggingFace embeddings: {self.__model_name}")
 
-            elif self.__provider == "remote_server":
-                # Build base_url from host/port or use provided base_url
-                if config.get("base_url"):
-                    self.__base_url = config.get("base_url")
-                elif config.get("host") and config.get("port"):
-                    host = config.get("host")
-                    port = config.get("port")
-                    self.__base_url = f"http://{host}:{port}/embed"
-                else:
-                    raise ValueError("remote_server provider requires either 'base_url' or 'host' and 'port'")
-
-                Utility.log(f"Successfully configured remote embedding server: {self.__base_url}")
+            # elif self.__provider == "remote_server":
+            #     # Build base_url from host/port or use provided base_url
+            #     if config.get("base_url"):
+            #         self.__base_url = config.get("base_url")
+            #     elif config.get("host") and config.get("port"):
+            #         host = config.get("host")
+            #         port = config.get("port")
+            #         self.__base_url = f"http://{host}:{port}/embed"
+            #     else:
+            #         raise ValueError("remote_server provider requires either 'base_url' or 'host' and 'port'")
+            #
+            #     Utility.log(f"Successfully configured remote embedding server: {self.__base_url}")
 
             else:
                 raise ValueError(f"Unsupported provider: {self.__provider}")
@@ -186,3 +194,6 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
         except Exception as e:
             Utility.error_log(f"Error generating batch embeddings: {e}")
             raise
+
+    def get_dimensions(self) -> Union[int | None]:
+        return self.__dimensions

@@ -166,7 +166,7 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
     def generate_embeddings_batch(self, texts: Union[pd.Series, List[str]]) -> pd.Series:
         """
         Generate embeddings for a batch of texts (entire column).
-        Uses provider-specific batch methods for efficiency.
+        Uses get_embeddings for each text in the batch.
 
         Args:
             texts: Pandas Series or list of text strings
@@ -178,41 +178,10 @@ class LangChainEmbeddingsConnector(EmbeddingsAiConnectorBase):
             # Convert to list if it's a Series
             text_list = texts.tolist() if isinstance(texts, pd.Series) else texts
 
-            if self.__provider == "sentence_transformers":
-                # Use native batch encoding for efficiency
-                embeddings = self.__model.encode(
-                    text_list,
-                    batch_size=self.__batch_size,
-                    show_progress_bar=self.__show_progress,
-                    normalize_embeddings=self.__normalize
-                )
-                return pd.Series([emb.tolist() for emb in embeddings])
+            # Generate embeddings using get_embeddings for each text
+            embeddings = [self.get_embeddings(text) for text in text_list]
 
-            elif self.__provider in ["openai", "huggingface"]:
-                # LangChain embeddings have batch interface
-                embeddings = self.__model.embed_documents(text_list)
-                return pd.Series(embeddings)
-
-            elif self.__provider == "remote_server":
-                # Call remote embedding server with batch
-                import requests
-                response = requests.post(
-                    self.__base_url,
-                    json={"texts": text_list},
-                    timeout=self.__timeout
-                )
-                response.raise_for_status()
-                result = response.json()
-
-                # Handle various response formats
-                if isinstance(result, list):
-                    # Direct list of embeddings
-                    return pd.Series(result)
-                elif "embeddings" in result:
-                    # {"embeddings": [[...], [...]]}
-                    return pd.Series(result["embeddings"])
-                else:
-                    raise ValueError(f"Unexpected batch response format from server: {result}")
+            return pd.Series(embeddings)
 
         except Exception as e:
             Utility.error_log(f"Error generating batch embeddings: {e}")

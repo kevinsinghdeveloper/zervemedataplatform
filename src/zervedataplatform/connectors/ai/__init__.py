@@ -7,4 +7,5 @@ __all__ = [
     "LangChainLLMConnector",
     "GoogleVisionAPIConnector",
     "GenAIManager",
+    "LangChainEmbeddingsConnector"
 ]

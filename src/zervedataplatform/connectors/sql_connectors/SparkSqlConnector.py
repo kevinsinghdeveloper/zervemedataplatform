@@ -2,6 +2,7 @@ from typing import Type, Dict, Any, List
 from dataclasses import fields
 from pyspark.sql import SparkSession, DataFrame
 from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector
+from zervedataplatform.connectors.sql_connectors.SqlConnectorHandler import SqlConnectorHandler
 
 
 class SparkSQLConnector(SqlConnector):
@@ -14,6 +15,9 @@ class SparkSQLConnector(SqlConnector):
         """
         super().__init__(db_config)
 
+        # get sql connector for db config
+        self.__helper_db_connector = SqlConnectorHandler.get_sql_connector(db_config)
+
         # Create Spark session specifically for SQL operations
         self._spark = SparkSession.builder.appName("SparkSQLSession").getOrCreate()
 
@@ -22,6 +26,7 @@ class SparkSQLConnector(SqlConnector):
         self.user = db_config["user"]
         self.password = db_config["password"]
         self.schema = db_config.get("schema", "public")  # Default schema
+        self.driver = db_config.get("driver", "org.postgresql.Driver")
 
     def get_spark(self):
         """Returns the Spark session for SQL operations."""
@@ -84,8 +89,15 @@ class SparkSQLConnector(SqlConnector):
             .option("query", query) \
             .option("user", self.user) \
             .option("password", self.password) \
-            .option("driver", "org.postgresql.Driver") \
+            .option("driver", self.driver) \
             .load()
+
+    def get_table(self, table_name, limit_n: int = None) -> DataFrame:
+        limit = ""
+        if limit_n:
+            limit = f"LIMIT {limit_n}"
+
+        return self.run_sql_and_get_df(query=f"SELECT * FROM {self.schema}.{table_name} {limit}")
 
     def pull_data_from_table(self, table_name: str, columns: List[str], filters: dict = None) -> DataFrame:
         """Fetches data from a table with optional filters."""
@@ -99,38 +111,15 @@ class SparkSQLConnector(SqlConnector):
         return self.run_sql_and_get_df(query)
 
     def exec_sql(self, query: str):
-        """Executes a SQL query on the database via psycopg2."""
-        import psycopg2
+        """
+        Executes a SQL query on the database.
 
-        conn = None
-        cursor = None
-        try:
-            # Connect using psycopg2 directly
-            conn = psycopg2.connect(
-                host=self._config['host'],
-                port=self._config['port'],
-                database=self._config['database'],
-                user=self._config['user'],
-                password=self._config['password'],
-                options=f"-c search_path={self.schema}"
-            )
-            cursor = conn.cursor()
-
-            # Execute the query
-            cursor.execute(query)
-
-            # Commit for DML/DDL operations
-            conn.commit()
-
-        except Exception as e:
-            if conn:
-                conn.rollback()
-            raise Exception(f"Failed to execute SQL: {str(e)}")
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
+        Uses the helper connector for non-Spark operations (DDL, DML, etc.)
+        that Spark doesn't handle well.
+        """
+        # Delegate to the helper connector (e.g., PostgresSqlConnector)
+        # This avoids direct psycopg2 usage and leverages the existing connector
+        self.__helper_db_connector.exec_sql(query)
 
     def get_table_n_rows_to_df(self, table_name: str, nrows: int) -> DataFrame:
         """Fetches a limited number of rows from a table."""
@@ -158,6 +147,17 @@ class SparkSQLConnector(SqlConnector):
         except Exception as e:
             # If query fails, return empty list
             print(f"Error listing tables with prefix '{prefix}': {e}")
+            return []
+
+    def list_tables(self) -> List[str]:
+        query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{self.schema}' ORDER BY table_name"
+
+        try:
+            df = self.run_sql_and_get_df(query)
+            return df.select("table_name").rdd.flatMap(lambda x: x).collect()
+        except Exception as e:
+            # If query fails, return empty list
+            print(f"Error listing tables: {e}")
             return []
 
     def get_table_header(self, table_name: str) -> List[str]:
@@ -203,34 +203,13 @@ class SparkSQLConnector(SqlConnector):
         return [data_model(**row.asDict()) for row in df.collect()]
 
     def _get_sql_type(self, python_type) -> str:
-        """Maps Python types to PostgreSQL types."""
-        type_mapping = {
-            int: "INTEGER",
-            float: "REAL",
-            str: "TEXT",
-            bool: "BOOLEAN",
-            "int": "INTEGER",
-            "float": "REAL",
-            "str": "TEXT",
-            "bool": "BOOLEAN",
-        }
+        """
+        Maps Python types to SQL types.
 
-        # Handle typing module types
-        type_str = str(python_type)
-        if "int" in type_str.lower():
-            return "INTEGER"
-        elif "float" in type_str.lower():
-            return "REAL"
-        elif "str" in type_str.lower():
-            return "TEXT"
-        elif "bool" in type_str.lower():
-            return "BOOLEAN"
-        elif "datetime" in type_str.lower():
-            return "TIMESTAMP"
-        elif "date" in type_str.lower():
-            return "DATE"
-
-        return type_mapping.get(python_type, "TEXT")
+        Delegates to the helper connector to leverage its type mapping system,
+        which includes support for PostgresDataType enum, JSONB, vector types, etc.
+        """
+        return self.__helper_db_connector._get_sql_type(python_type)
 
     def create_table_ctas(self, tableName: str, innerSql: str, sortkey: str = None, distkey: str = None,
                           include_print: bool = True):
@@ -365,6 +344,26 @@ class SparkSQLConnector(SqlConnector):
             .option("dbtable", f"{self.schema}.{table_name}") \
             .option("user", self.user) \
             .option("password", self.password) \
-            .option("driver", "org.postgresql.Driver") \
+            .option("driver", self.driver) \
             .mode(mode) \
             .save()
+
+    def cast_column(self, table_name: str, column_name: str, type: Any):
+        """
+        Cast a column to a different type by delegating to helper connector.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: SQL type instance (e.g., PostgresSqlType)
+        """
+        self.__helper_db_connector.cast_column(table_name, column_name, type)
+
+    def create_index_column(self, index: Any):
+        """
+        Create an index on a column by delegating to helper connector.
+
+        Args:
+            index: Index definition object (e.g., PostgresSqlVectorTypeDef)
+        """
+        self.__helper_db_connector.create_index_column(index)

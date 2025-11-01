@@ -27,6 +27,7 @@ class TestSparkSQLConnector(unittest.TestCase):
             "user": "test_user",
             "password": "test_password",
             "schema": "public",
+            "database_type": "postgres",  # Required for SqlConnectorHandler
             "spark_config": {
                 "spark.jars": "/path/to/postgresql.jar",
                 "spark.driver.memory": "2g"
@@ -324,16 +325,30 @@ class TestSparkSQLConnector(unittest.TestCase):
 
         connector = SparkSQLConnector(self.db_config)
 
-        # Test basic type mappings
-        self.assertEqual(connector._get_sql_type(int), "INTEGER")
-        self.assertEqual(connector._get_sql_type(float), "REAL")
-        self.assertEqual(connector._get_sql_type(str), "TEXT")
-        self.assertEqual(connector._get_sql_type(bool), "BOOLEAN")
+        # Test basic type mappings (now delegated to helper connector)
+        # These should return PostgresSqlType instances from the helper
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresSqlTypeDef
 
-    @patch('psycopg2.connect')
+        result_int = connector._get_sql_type(int)
+        self.assertIsInstance(result_int, PostgresSqlTypeDef)
+        self.assertEqual(str(result_int), "INTEGER")
+
+        result_float = connector._get_sql_type(float)
+        self.assertIsInstance(result_float, PostgresSqlTypeDef)
+        self.assertEqual(str(result_float), "FLOAT")  # PostgresSqlConnector uses FLOAT
+
+        result_str = connector._get_sql_type(str)
+        self.assertIsInstance(result_str, PostgresSqlTypeDef)
+        self.assertEqual(str(result_str), "VARCHAR")  # PostgresSqlConnector uses VARCHAR
+
+        result_bool = connector._get_sql_type(bool)
+        self.assertIsInstance(result_bool, PostgresSqlTypeDef)
+        self.assertEqual(str(result_bool), "BOOLEAN")
+
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_exec_sql_with_psycopg2(self, mock_spark_session, mock_psycopg2_connect):
-        """Test exec_sql uses psycopg2 with proper schema configuration"""
+    def test_exec_sql_with_psycopg2(self, mock_spark_session, mock_handler):
+        """Test exec_sql delegates to helper connector"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
         mock_builder = Mock()
@@ -341,36 +356,22 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
+        # Mock helper connector
+        mock_helper_connector = Mock()
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         test_query = "CREATE TABLE test (id INTEGER)"
 
         connector.exec_sql(test_query)
 
-        # Verify psycopg2.connect was called with correct parameters including schema
-        connect_call_kwargs = mock_psycopg2_connect.call_args[1]
-        self.assertEqual(connect_call_kwargs['host'], 'localhost')
-        self.assertEqual(connect_call_kwargs['port'], 5432)
-        self.assertEqual(connect_call_kwargs['database'], 'test_db')
-        self.assertEqual(connect_call_kwargs['user'], 'test_user')
-        self.assertEqual(connect_call_kwargs['password'], 'test_password')
-        self.assertEqual(connect_call_kwargs['options'], '-c search_path=public')
+        # Verify helper connector's exec_sql was called with the query
+        mock_helper_connector.exec_sql.assert_called_once_with(test_query)
 
-        # Verify cursor operations
-        mock_cursor.execute.assert_called_once_with(test_query)
-        mock_conn.commit.assert_called_once()
-        mock_cursor.close.assert_called_once()
-        mock_conn.close.assert_called_once()
-
-    @patch('psycopg2.connect')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_exec_sql_with_error_rollback(self, mock_spark_session, mock_psycopg2_connect):
-        """Test exec_sql rolls back on error"""
+    def test_exec_sql_with_error_rollback(self, mock_spark_session, mock_handler):
+        """Test exec_sql propagates errors from helper connector"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
         mock_builder = Mock()
@@ -378,14 +379,10 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
-
-        # Simulate an error during execution
-        mock_cursor.execute.side_effect = Exception("SQL execution failed")
+        # Mock helper connector to raise an error
+        mock_helper_connector = Mock()
+        mock_helper_connector.exec_sql.side_effect = Exception("SQL execution failed")
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         test_query = "INVALID SQL"
@@ -394,16 +391,14 @@ class TestSparkSQLConnector(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             connector.exec_sql(test_query)
 
-        self.assertIn("Failed to execute SQL", str(context.exception))
+        self.assertIn("SQL execution failed", str(context.exception))
 
-        # Verify rollback was called
-        mock_conn.rollback.assert_called_once()
-        mock_cursor.close.assert_called_once()
-        mock_conn.close.assert_called_once()
+        # Verify helper connector's exec_sql was called
+        mock_helper_connector.exec_sql.assert_called_once_with(test_query)
 
-    @patch('psycopg2.connect')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_create_table_using_def(self, mock_spark_session, mock_psycopg2_connect):
+    def test_create_table_using_def(self, mock_spark_session, mock_handler):
         """Test creating table using column definitions"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
@@ -412,11 +407,9 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
+        # Mock helper connector
+        mock_helper_connector = Mock()
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         table_def = {
@@ -428,14 +421,12 @@ class TestSparkSQLConnector(unittest.TestCase):
         # This will call exec_sql internally
         connector.create_table_using_def("test_table", table_def)
 
-        # Verify psycopg2 was called (exec_sql uses psycopg2 now)
-        mock_psycopg2_connect.assert_called_once()
-        mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        # Verify helper connector's exec_sql was called
+        mock_helper_connector.exec_sql.assert_called_once()
 
-    @patch('psycopg2.connect')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_clone_table(self, mock_spark_session, mock_psycopg2_connect):
+    def test_clone_table(self, mock_spark_session, mock_handler):
         """Test cloning a table"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
@@ -444,23 +435,19 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
+        # Mock helper connector
+        mock_helper_connector = Mock()
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         connector.clone_table("original_table", "cloned_table")
 
-        # Verify psycopg2 was called (exec_sql uses psycopg2 now)
-        mock_psycopg2_connect.assert_called_once()
-        mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        # Verify helper connector's exec_sql was called
+        mock_helper_connector.exec_sql.assert_called_once()
 
-    @patch('psycopg2.connect')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_rename_table(self, mock_spark_session, mock_psycopg2_connect):
+    def test_rename_table(self, mock_spark_session, mock_handler):
         """Test renaming a table"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
@@ -469,19 +456,15 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
+        # Mock helper connector
+        mock_helper_connector = Mock()
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         connector.rename_table("old_table", "new_table")
 
-        # Verify psycopg2 was called (exec_sql uses psycopg2 now)
-        mock_psycopg2_connect.assert_called_once()
-        mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        # Verify helper connector's exec_sql was called
+        mock_helper_connector.exec_sql.assert_called_once()
 
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
     def test_test_table_by_row_count_with_data(self, mock_spark_session):
@@ -567,9 +550,9 @@ class TestSparkSQLConnector(unittest.TestCase):
         self.assertIn("status", query)
         self.assertEqual(result, ["value1", "value2", "value3"])
 
-    @patch('psycopg2.connect')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_create_table_ctas(self, mock_spark_session, mock_psycopg2_connect):
+    def test_create_table_ctas(self, mock_spark_session, mock_handler):
         """Test creating table using CTAS (CREATE TABLE AS SELECT)"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
@@ -578,25 +561,21 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
+        # Mock helper connector
+        mock_helper_connector = Mock()
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         inner_sql = "SELECT * FROM source_table WHERE age > 18"
 
         connector.create_table_ctas("new_table", inner_sql, include_print=False)
 
-        # Verify psycopg2 was called (exec_sql uses psycopg2 now)
-        mock_psycopg2_connect.assert_called_once()
-        mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        # Verify helper connector's exec_sql was called
+        mock_helper_connector.exec_sql.assert_called_once()
 
-    @patch('psycopg2.connect')
+    @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SqlConnectorHandler')
     @patch('zervedataplatform.connectors.sql_connectors.SparkSqlConnector.SparkSession')
-    def test_append_to_table_insert_select(self, mock_spark_session, mock_psycopg2_connect):
+    def test_append_to_table_insert_select(self, mock_spark_session, mock_handler):
         """Test appending data to table using INSERT INTO SELECT"""
         # Mock SparkSession
         mock_spark = Mock(spec=SparkSession)
@@ -605,21 +584,17 @@ class TestSparkSQLConnector(unittest.TestCase):
         mock_builder.config.return_value = mock_builder
         mock_builder.getOrCreate.return_value = mock_spark
 
-        # Mock psycopg2 connection
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_psycopg2_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
+        # Mock helper connector
+        mock_helper_connector = Mock()
+        mock_handler.get_sql_connector.return_value = mock_helper_connector
 
         connector = SparkSQLConnector(self.db_config)
         inner_sql = "SELECT id, name FROM source_table"
 
         connector.append_to_table_insert_select("target_table", inner_sql, columnStr="id, name")
 
-        # Verify psycopg2 was called (exec_sql uses psycopg2 now)
-        mock_psycopg2_connect.assert_called_once()
-        mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        # Verify helper connector's exec_sql was called
+        mock_helper_connector.exec_sql.assert_called_once()
 
 
 if __name__ == '__main__':

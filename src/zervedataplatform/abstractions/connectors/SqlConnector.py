@@ -1,8 +1,26 @@
-from typing import Type, Dict, Any, List
+from __future__ import annotations
+
+from typing import Type, Dict, Any, List, Optional
+from dataclasses import dataclass
 
 import pandas as pd
+from pyspark.sql import DataFrame
 
 from abc import abstractmethod, ABC
+
+
+@dataclass(frozen=True)
+class SqlType:
+    """
+    Base class for SQL data types across different database connectors.
+
+    Provides a common interface for representing SQL types with optional parameters.
+    Subclasses should implement database-specific type systems (e.g., PostgresSqlType, MySqlType).
+    """
+
+    def __str__(self) -> str:
+        """String representation returns SQL type"""
+        return self.to_sql()
 
 
 class SqlConnector(ABC):
@@ -38,7 +56,11 @@ class SqlConnector(ABC):
         pass
 
     @abstractmethod
-    def run_sql_and_get_df(self, query, warnings: bool) -> pd.DataFrame:
+    def get_table(self, table_name, limit_n: int = None):
+        pass
+
+    @abstractmethod
+    def run_sql_and_get_df(self, query, warnings: bool) :
         pass
 
     @abstractmethod
@@ -65,6 +87,10 @@ class SqlConnector(ABC):
         :param prefix: The prefix to filter table names
         :return: List of table names matching the prefix
         """
+        pass
+
+    @abstractmethod
+    def list_tables(self) -> List[str]:
         pass
 
     @abstractmethod
@@ -133,5 +159,29 @@ class SqlConnector(ABC):
     def insert_data_model_to_table(self, data_class: Any, table_name: str, pk_key: str = "ID") -> int:
         pass
 
+    @abstractmethod
+    def write_dataframe_to_table(self, df: DataFrame, table_name: str, mode: str = "append"):
+        pass
 
+    @abstractmethod
+    def cast_column(self, table_name: str, column_name: str, type: SqlType):
+        """
+        Cast a column to a different SQL type.
 
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: SQL type instance (e.g., PostgresSqlType for PostgreSQL connectors)
+        """
+        pass
+
+    @abstractmethod
+    def create_index_column(self, index: Any):
+        """
+        Create an index on a column.
+
+        Args:
+            index: Index definition object containing table, column, and index configuration
+                   (e.g., PostgresSqlVectorTypeDef for PostgreSQL vector indexes)
+        """
+        pass

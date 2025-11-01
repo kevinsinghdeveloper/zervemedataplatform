@@ -2,11 +2,11 @@ from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from zervedataplatform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from zervedataplatform.abstractions.connectors.ChatAgentAIConnectorBase import ChatAgentAiConnectorBase
 from zervedataplatform.utils.Utility import Utility
 
 
-class LangChainLLMConnector(GenAIApiConnectorBase):
+class LangChainLLMConnector(ChatAgentAiConnectorBase):
     """
     Connector for LLMs using LangChain. Supports multiple backends:
     - OpenAI (gpt-4, gpt-3.5-turbo, etc.)
@@ -39,9 +39,9 @@ class LangChainLLMConnector(GenAIApiConnectorBase):
         self.__gen_config = None
         self.__format = None
 
-        self.configure_llm()
+        self.configure_model()
 
-    def configure_llm(self):
+    def configure_model(self):
         """Configure the LangChain LLM based on provider"""
         config = self.get_config()
         self.__model_name = config["model_name"]

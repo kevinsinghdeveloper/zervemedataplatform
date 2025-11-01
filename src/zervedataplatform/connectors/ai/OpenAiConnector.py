@@ -1,18 +1,18 @@
 from openai import OpenAI
 
-from zervedataplatform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from zervedataplatform.abstractions.connectors.ChatAgentAIConnectorBase import ChatAgentAiConnectorBase
 
 
-class OpenAiConnector(GenAIApiConnectorBase):
+class OpenAiConnector(ChatAgentAiConnectorBase):
     def __init__(self, gen_ai_api_config: dict):
         super().__init__(gen_ai_api_config)
         self.__model_name = None
         self.__genai_config = None
         self.__model = None
 
-        self.configure_llm()
+        self.configure_model()
 
-    def configure_llm(self):
+    def configure_model(self):
         config = self.get_config()
         api_key = config["api_key"]
 

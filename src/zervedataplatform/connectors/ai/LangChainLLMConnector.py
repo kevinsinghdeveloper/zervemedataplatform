@@ -1,6 +1,8 @@
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import time
 
 from zervedataplatform.abstractions.connectors.ChatAgentAIConnectorBase import ChatAgentAiConnectorBase
 from zervedataplatform.utils.Utility import Utility
@@ -103,7 +105,7 @@ class LangChainLLMConnector(ChatAgentAiConnectorBase):
         return system_prompt, user_prompt
 
     def submit_general_prompt(self, prompt: str, llm_instructions: str, is_json: bool = False):
-        """Submit a prompt using LangChain"""
+        """Submit a prompt using LangChain with retry logic"""
         try:
             # Create messages for chat models
             messages = [
@@ -118,7 +120,8 @@ class LangChainLLMConnector(ChatAgentAiConnectorBase):
                     content=f"{llm_instructions}\n\nIMPORTANT: Return your response as valid JSON."
                 )
 
-            response = self.__model.invoke(messages)
+            # Invoke with retry logic
+            response = self.__invoke_with_retry(messages)
 
             # Return in a format consistent with the original implementation
             return {
@@ -129,6 +132,36 @@ class LangChainLLMConnector(ChatAgentAiConnectorBase):
 
         except Exception as e:
             Utility.error_log(f"Error submitting prompt to {self.__provider}: {e}")
+            raise
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, Exception)),
+        reraise=True
+    )
+    def __invoke_with_retry(self, messages):
+        """
+        Invoke the LLM model with retry logic.
+
+        Retries up to 3 times with exponential backoff (2s, 4s, 8s).
+        Retries on connection errors, timeouts, and general exceptions.
+
+        Args:
+            messages: List of LangChain messages to send to the model
+
+        Returns:
+            Model response
+
+        Raises:
+            Exception: If all retry attempts fail
+        """
+        try:
+            Utility.log(f"Invoking {self.__provider} model: {self.__model_name}")
+            response = self.__model.invoke(messages)
+            return response
+        except Exception as e:
+            Utility.error_log(f"LLM invoke attempt failed: {e}. Retrying...")
             raise
 
     def __process_and_extract_response(self, response: dict):

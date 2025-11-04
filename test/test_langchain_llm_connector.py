@@ -219,6 +219,47 @@ class TestLangChainLLMConnector(unittest.TestCase):
 
         self.assertIn("API Error", str(context.exception))
 
+    @patch('zervedataplatform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    def test_submit_general_prompt_retries_on_failure(self, mock_chat_ollama):
+        """Test submit_general_prompt retries on transient failures"""
+        mock_model = MagicMock()
+
+        # First two calls fail, third succeeds
+        mock_response = MagicMock()
+        mock_response.content = "Success after retry"
+        mock_model.invoke.side_effect = [
+            ConnectionError("Network error"),
+            TimeoutError("Timeout error"),
+            mock_response
+        ]
+        mock_chat_ollama.return_value = mock_model
+
+        connector = LangChainLLMConnector(self.ollama_config)
+        response = connector.submit_general_prompt("Test prompt", "Test instructions")
+
+        # Should succeed on third attempt
+        self.assertEqual(response["message"]["content"], "Success after retry")
+        # Verify it was called 3 times (2 failures + 1 success)
+        self.assertEqual(mock_model.invoke.call_count, 3)
+
+    @patch('zervedataplatform.connectors.ai.LangChainLLMConnector.ChatOllama')
+    def test_submit_general_prompt_fails_after_max_retries(self, mock_chat_ollama):
+        """Test submit_general_prompt fails after exhausting retries"""
+        mock_model = MagicMock()
+
+        # All calls fail
+        mock_model.invoke.side_effect = ConnectionError("Network error")
+        mock_chat_ollama.return_value = mock_model
+
+        connector = LangChainLLMConnector(self.ollama_config)
+
+        with self.assertRaises(ConnectionError) as context:
+            connector.submit_general_prompt("Test prompt", "Test instructions")
+
+        self.assertIn("Network error", str(context.exception))
+        # Should have tried 3 times (max retries)
+        self.assertEqual(mock_model.invoke.call_count, 3)
+
     # Test data prompt submission
     @patch('zervedataplatform.connectors.ai.LangChainLLMConnector.ChatOllama')
     def test_submit_data_prompt(self, mock_chat_ollama):

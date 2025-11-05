@@ -157,7 +157,6 @@ class LangChainLLMConnector(ChatAgentAiConnectorBase):
             Exception: If all retry attempts fail
         """
         try:
-            Utility.log(f"Invoking {self.__provider} model: {self.__model_name}")
             response = self.__model.invoke(messages)
             return response
         except Exception as e:

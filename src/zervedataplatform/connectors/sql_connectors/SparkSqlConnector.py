@@ -3,6 +3,7 @@ from dataclasses import fields
 from pyspark.sql import SparkSession, DataFrame
 from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector
 from zervedataplatform.connectors.sql_connectors.SqlConnectorHandler import SqlConnectorHandler
+from zervedataplatform.utils.Utility import Utility
 
 
 class SparkSQLConnector(SqlConnector):
@@ -81,16 +82,20 @@ class SparkSQLConnector(SqlConnector):
     def bulk_insert_data_into_table(self, table_name: str, df: DataFrame):
         raise NotImplementedError("Bulk insert is not implemented for SparkSQLConnector. Use write_dataframe_to_table instead.")
 
-    def run_sql_and_get_df(self, query: str, warnings: bool = False) -> DataFrame:
-        """Runs a SQL query and returns a Spark DataFrame."""
-        return self.get_spark().read \
-            .format("jdbc") \
-            .option("url", self.db_url) \
-            .option("query", query) \
-            .option("user", self.user) \
-            .option("password", self.password) \
-            .option("driver", self.driver) \
-            .load()
+    def run_sql_and_get_df(self, query: str, warnings: bool = False) -> DataFrame | None:
+        """Runs a SQL query and returns a Spark DataFrame, or None if query fails."""
+        try:
+            return self.get_spark().read \
+                .format("jdbc") \
+                .option("url", self.db_url) \
+                .option("query", query) \
+                .option("user", self.user) \
+                .option("password", self.password) \
+                .option("driver", self.driver) \
+                .load()
+        except Exception as e:
+            Utility.warning_log(f"SQL query failed: {e}")
+            return None
 
     def get_table(self, table_name, limit_n: int = None) -> DataFrame:
         limit = ""

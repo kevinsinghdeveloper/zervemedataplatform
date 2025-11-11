@@ -25,11 +25,13 @@ class TestETLUtilities(unittest.TestCase):
             }
         }
         self.mock_pipeline_config.db_config = {
+            'database_type': 'postgres',
             'host': 'localhost',
             'port': 5432,
             'database': 'test_db'
         }
         self.mock_pipeline_config.dest_db_config = {
+            'database_type': 'postgres',
             'host': 'dest-host',
             'port': 5432,
             'database': 'dest_db'
@@ -1277,6 +1279,285 @@ class TestETLUtilities(unittest.TestCase):
         # Verify source_db_manager was used
         mock_source_sql.create_index_column.assert_called_once_with(index)
         mock_dest_sql.create_index_column.assert_not_called()
+
+    # Tests for union_spark_df method
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_basic(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df with basic DataFrames"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # Create two DataFrames with same schema
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A"},
+            {"product_id": 2, "price": 20.0, "name": "Product B"}
+        ])
+
+        df2 = spark.createDataFrame([
+            {"product_id": 3, "price": 30.0, "name": "Product C"},
+            {"product_id": 4, "price": 40.0, "name": "Product D"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 4)
+        self.assertEqual(len(result.columns), 3)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_with_missing_columns(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df handles DataFrames with missing columns"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df1 has all columns
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A"}
+        ])
+
+        # df2 is missing 'name' column
+        df2 = spark.createDataFrame([
+            {"product_id": 2, "price": 20.0}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 2)
+        self.assertEqual(len(result.columns), 3)
+
+        # Check that missing column was filled with null
+        rows = result.collect()
+        self.assertIsNone(rows[1]["name"])
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_with_type_casting(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df casts columns to correct types"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df1 has price as int
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10, "name": "Product A"}
+        ])
+
+        # df2 has price as float
+        df2 = spark.createDataFrame([
+            {"product_id": 2, "price": 20.5, "name": "Product B"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 2)
+
+        # Check data types
+        price_type = [field.dataType.simpleString() for field in result.schema.fields if field.name == "price"][0]
+        self.assertIn("float", price_type.lower())
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_with_extra_columns(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df removes extra columns not in schema_map"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df1 has an extra column 'description'
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A", "description": "Extra"}
+        ])
+
+        df2 = spark.createDataFrame([
+            {"product_id": 2, "price": 20.0, "name": "Product B"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result only has columns from schema_map
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.columns), 3)
+        self.assertNotIn("description", result.columns)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_multiple_dataframes(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df with more than 2 DataFrames"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        df1 = spark.createDataFrame([{"id": 1, "value": "A"}])
+        df2 = spark.createDataFrame([{"id": 2, "value": "B"}])
+        df3 = spark.createDataFrame([{"id": 3, "value": "C"}])
+        df4 = spark.createDataFrame([{"id": 4, "value": "D"}])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "id": "int",
+            "value": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2, df3, df4], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 4)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_empty_list(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df returns None for empty DataFrame list"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float"
+        }
+
+        result = etl_util.union_spark_df([], schema_map)
+
+        # Verify result is None
+        self.assertIsNone(result)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_single_dataframe(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df with a single DataFrame"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        df = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 1)
+        self.assertEqual(len(result.columns), 3)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_preserves_column_order(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df preserves column order from schema_map"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df with columns in different order
+        df1 = spark.createDataFrame([
+            {"name": "Product A", "product_id": 1, "price": 10.0}
+        ])
+
+        df2 = spark.createDataFrame([
+            {"price": 20.0, "name": "Product B", "product_id": 2}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify column order matches schema_map
+        self.assertEqual(result.columns, list(schema_map.keys()))
+
+        spark.stop()
 
 
 if __name__ == '__main__':

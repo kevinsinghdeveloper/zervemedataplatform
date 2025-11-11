@@ -1,7 +1,9 @@
 from datetime import datetime
+from functools import reduce
 from typing import Union, Any, List
 
 from pyspark import Row
+import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import lit, concat_ws, col, coalesce, concat, array, array_remove
 
@@ -164,6 +166,67 @@ class ETLUtilities:
     def get_all_db_tables(self, use_dest_db: bool = False):
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         return db_manager.list_tables()
+
+    def convert_schema_map_to_spark_types(self, schema_map: dict) -> dict:
+        # map the schema types to spark types
+        spark_schema_map = {}
+        for col, dtype in schema_map.items():
+            if dtype == "text":
+                spark_schema_map[col] = "string"
+            elif dtype == "float":
+                spark_schema_map[col] = "float"
+            elif dtype == "int":
+                spark_schema_map[col] = "int"
+            elif dtype == "double":
+                spark_schema_map[col] = "double"
+            else:
+                spark_schema_map[col] = "string"  # default to string if unknown
+
+        return spark_schema_map
+
+    def union_spark_df(self, dfs: List[DataFrame], schema_map: dict) -> DataFrame:
+        """
+        Unions multiple Spark DataFrames according to a schema map.
+        Ensures all DataFrames have consistent columns and types.
+
+        Args:
+            dfs: List of Spark DataFrames to union
+            schema_map: Dictionary mapping column names to their types
+
+        Returns:
+            DataFrame: Combined DataFrame with normalized schema
+        """
+        if not dfs:
+            Utility.log("No DataFrames provided for union.")
+            return None
+
+        spark_schema_map = self.convert_schema_map_to_spark_types(schema_map)
+        # e.g. {'price': FloatType(), 'product_title': StringType(), ...}
+
+        normalized_dfs = []
+
+        # Normalize all DataFrames to have consistent columns and types
+        for df in dfs:
+            for col_name, spark_type in spark_schema_map.items():
+                if col_name not in df.columns:
+                    df = df.withColumn(col_name, F.lit(None).cast(spark_type))
+                else:
+                    df = df.withColumn(col_name, F.col(col_name).cast(spark_type))
+
+            df = df.select(list(schema_map.keys()))
+            normalized_dfs.append(df)
+
+        # Union all normalized DataFrames
+        combined_df = reduce(
+            lambda a, b: a.unionByName(b, allowMissingColumns=True),
+            normalized_dfs
+        )
+
+        Utility.log(
+            f"Unioned {len(normalized_dfs)} DataFrames with schema: {list(schema_map.keys())}"
+        )
+
+        return combined_df
 
     @staticmethod
     def get_latest_folder_from_list(folders: [str]) -> Union[str | None]:

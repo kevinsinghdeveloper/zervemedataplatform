@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zervedataplatform"
-version = "0.2.1"
+version = "0.2.2"
 description = "E-commerce data extraction and processing platform with AI-powered enrichment"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -31,6 +31,7 @@ dependencies = [
     "pandas>=2.3.3",
     "numpy>=1.24.4",
     "pyspark==3.5.2",
+    "pyarrow>=4.0.0",
 
     # Cloud services - AWS
     "boto3>=1.26.0",
@@ -42,14 +43,17 @@ dependencies = [
 
     # Database
     "psycopg2-binary>=2.9.0",
+    "sqlalchemy>=2.0.0",
 
     # AI/ML
     "openai>=1.0.0",
+    "sentence-transformers>=2.2.0",
 
     # LangChain
     "langchain>=0.1.0",
     "langchain-community>=0.0.20",
     "langchain-openai>=0.0.5",
+    "langchain-huggingface>=0.0.1",
     "langchain-core>=0.1.0",
 
     # Computer Vision

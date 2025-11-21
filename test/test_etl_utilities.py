@@ -1064,6 +1064,180 @@ class TestETLUtilities(unittest.TestCase):
 
         spark.stop()
 
+    # Tests for cleanup functionality
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cleanup_stops_spark_session(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cleanup method stops Spark session"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Call cleanup
+        etl_util.cleanup()
+
+        # Verify Spark session was stopped
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cleanup_idempotent(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cleanup can be called multiple times safely"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Call cleanup multiple times
+        etl_util.cleanup()
+        etl_util.cleanup()
+        etl_util.cleanup()
+
+        # Verify Spark session was stopped only once
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cleanup_handles_exception(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cleanup handles exceptions gracefully"""
+        mock_spark = MagicMock()
+        mock_spark.stop.side_effect = Exception("Spark stop failed")
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Cleanup should not raise exception
+        try:
+            etl_util.cleanup()
+        except Exception:
+            self.fail("cleanup() raised Exception unexpectedly")
+
+        # Verify stop was attempted
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_context_manager_cleans_up_on_exit(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test context manager cleanup on exit"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        with ETLUtilities(self.mock_pipeline_config) as etl_util:
+            # Spark should not be stopped yet
+            mock_spark.stop.assert_not_called()
+
+        # After exiting context, Spark should be stopped
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_context_manager_cleans_up_on_exception(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test context manager cleanup when exception occurs"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        try:
+            with ETLUtilities(self.mock_pipeline_config) as etl_util:
+                # Simulate an exception during processing
+                raise ValueError("Test exception")
+        except ValueError:
+            pass
+
+        # Spark should still be stopped even though exception occurred
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_context_manager_returns_self(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test context manager __enter__ returns self"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Test __enter__ returns self
+        self.assertIs(etl_util.__enter__(), etl_util)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_destructor_calls_cleanup(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test destructor calls cleanup"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Explicitly call destructor
+        etl_util.__del__()
+
+        # Verify Spark session was stopped
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_destructor_silences_exceptions(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test destructor silences exceptions"""
+        mock_spark = MagicMock()
+        mock_spark.stop.side_effect = Exception("Spark stop failed")
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Destructor should not raise exception
+        try:
+            etl_util.__del__()
+        except Exception:
+            self.fail("__del__() raised Exception unexpectedly")
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_explicit_cleanup_before_context_exit(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test calling cleanup explicitly before context manager exit"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        with ETLUtilities(self.mock_pipeline_config) as etl_util:
+            # Explicitly call cleanup
+            etl_util.cleanup()
+            # Spark should be stopped
+            mock_spark.stop.assert_called_once()
+
+        # After exiting context, stop should still only be called once
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_operations_work_with_context_manager(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test that ETL operations work correctly within context manager"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_cloud = Mock()
+        mock_cloud.list_files.return_value = ['file1', 'file2']
+        mock_cloud_connector.return_value = mock_cloud
+
+        with ETLUtilities(self.mock_pipeline_config) as etl_util:
+            # Perform operations
+            files = etl_util.get_all_files_from_folder('s3://test-bucket/path')
+            self.assertEqual(files, ['file1', 'file2'])
+
+            # Verify cloud connector was called
+            mock_cloud.list_files.assert_called_once_with('s3://test-bucket/path', 'folders')
+
+        # Verify cleanup happened
+        mock_spark.stop.assert_called_once()
+
     @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
     @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
     @patch('zervedataplatform.utils.ETLUtilities.SparkSession')

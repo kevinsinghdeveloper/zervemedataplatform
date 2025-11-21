@@ -2,15 +2,6 @@ MANIFEST.in
 README.md
 pyproject.toml
 requirements.txt
-default_configs/configuration.json
-default_configs/db_config.json
-default_configs/google_api_config.json
-default_configs/run.json
-default_configs/run_dev.json
-default_configs/s3_config.json
-default_configs/web_config.json
-default_configs/web_config_dev.json
-local_llm_dockers/.DS_Store
 local_llm_dockers/llama/dockerfile
 local_llm_dockers/llama/run.sh
 src/zervedataplatform/__init__.py
@@ -21,8 +12,10 @@ src/zervedataplatform.egg-info/requires.txt
 src/zervedataplatform.egg-info/top_level.txt
 src/zervedataplatform/abstractions/__init__.py
 src/zervedataplatform/abstractions/connectors/AIApiConnectorBase.py
+src/zervedataplatform/abstractions/connectors/AIConnectorBase.py
+src/zervedataplatform/abstractions/connectors/ChatAgentAIConnectorBase.py
 src/zervedataplatform/abstractions/connectors/CloudConnector.py
-src/zervedataplatform/abstractions/connectors/GenAIApiConnectorBase.py
+src/zervedataplatform/abstractions/connectors/EmbeddingsAIConnectorBase.py
 src/zervedataplatform/abstractions/connectors/SqlConnector.py
 src/zervedataplatform/abstractions/connectors/__init__.py
 src/zervedataplatform/abstractions/pipeline/PipelineComponent.py
@@ -51,6 +44,7 @@ src/zervedataplatform/connectors/__init__.py
 src/zervedataplatform/connectors/ai/GeminiGenAiConnector.py
 src/zervedataplatform/connectors/ai/GenAIManager.py
 src/zervedataplatform/connectors/ai/GoogleVisionAPIConnector.py
+src/zervedataplatform/connectors/ai/LangChainEmbeddingsConnector.py
 src/zervedataplatform/connectors/ai/LangChainLLMConnector.py
 src/zervedataplatform/connectors/ai/OpenAiConnector.py
 src/zervedataplatform/connectors/ai/__init__.py
@@ -65,6 +59,7 @@ src/zervedataplatform/connectors/cloud_storage_connectors/SparkCloudConnector.py
 src/zervedataplatform/connectors/cloud_storage_connectors/__init__.py
 src/zervedataplatform/connectors/sql_connectors/PostgresSqlConnector.py
 src/zervedataplatform/connectors/sql_connectors/SparkSqlConnector.py
+src/zervedataplatform/connectors/sql_connectors/SqlConnectorHandler.py
 src/zervedataplatform/connectors/sql_connectors/__init__.py
 src/zervedataplatform/decorators/__init__.py
 src/zervedataplatform/decorators/deprecated.py
@@ -95,9 +90,11 @@ src/zervedataplatform/utils/SparkUtility.py
 src/zervedataplatform/utils/Utility.py
 src/zervedataplatform/utils/__init__.py
 test/test_etl_utilities.py
+test/test_langchain_embeddings_connector.py
 test/test_langchain_llm_connector.py
 test/test_llm_characteristics_extractor.py
 test/test_pipeline.py
+test/test_postgres_sql_connector.py
 test/test_serp_service_manager.py
 test/test_spark_cloud_connector.py
 test/test_spark_sql_connector.py

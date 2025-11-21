@@ -35,6 +35,7 @@ class ETLUtilities:
             spark_builder = spark_builder.config(key, value)
 
         self.__spark_utilities = spark_builder.getOrCreate()
+        self.__spark_stopped = False
 
         self.__spark_cloud_manager = None
         self.__spark_source_db_manager = None
@@ -48,6 +49,34 @@ class ETLUtilities:
 
         if pipeline_run_config.dest_db_config:
             self.__spark_dest_db_manager = SparkSQLConnector(pipeline_run_config.dest_db_config)
+
+    def __enter__(self):
+        """Context manager entry - returns self for use in 'with' statements"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - cleanup Spark resources"""
+        self.cleanup()
+        return False
+
+    def cleanup(self):
+        """Explicitly cleanup Spark resources"""
+        if not self.__spark_stopped and hasattr(self, '_ETLUtilities__spark_utilities') and self.__spark_utilities:
+            try:
+                Utility.log("Stopping Spark session...")
+                self.__spark_utilities.stop()
+                self.__spark_stopped = True
+                Utility.log("Spark session stopped successfully")
+            except Exception as e:
+                Utility.log(f"Error stopping Spark session: {e}")
+
+    def __del__(self):
+        """Destructor as safety net - cleanup Spark resources if not already done"""
+        try:
+            self.cleanup()
+        except:
+            # Silence exceptions in destructor to avoid issues during interpreter shutdown
+            pass
 
 
     ''' PRE VALIDATION FUNCTIONS '''

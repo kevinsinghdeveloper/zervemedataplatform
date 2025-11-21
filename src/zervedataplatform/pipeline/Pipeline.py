@@ -246,6 +246,7 @@ class DataPipeline(PipelineComponent):
         from datetime import datetime as dt
         t0 = dt.now()
 
+        run_failed = False
         etl_obj = None
         for etl_obj in self._DataPipe:
             Utility.log(f"Running {etl_obj.name} job on stage {stage}")
@@ -266,9 +267,15 @@ class DataPipeline(PipelineComponent):
                     etl_obj.run_output_task()
             except Exception as e:
                 Utility.error_log(f"Error running {etl_obj.name} job on stage {stage}: {e}")
+                run_failed = True
+                break
 
         t = dt.now() - t0
-        Utility.log('Pipeline completed in ' + str(t))
+        if run_failed:
+            Utility.error_log(f"Pipeline failed at stage {stage}, duration: {str(t)}")
+            raise Exception(f"Pipeline failed at stage {stage}, duration: {str(t)}")
+        else:
+            Utility.log('Pipeline completed in ' + str(t))
 
         return etl_obj.get_pipeline_activity_log_contents()
 

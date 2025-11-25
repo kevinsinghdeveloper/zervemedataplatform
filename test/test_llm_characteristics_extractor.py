@@ -611,9 +611,10 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
 
         print(f"\nExtracted characteristics for Timberland: {result}")
 
-        # Should extract brown color
+        # Should extract brown color (may be "brown" or "wheat brown" or similar)
         colors = [c.lower() for c in result.get("color", [])]
-        self.assertTrue("brown" in colors, f"Expected brown in colors, got: {colors}")
+        colors_str = ' '.join(colors)
+        self.assertTrue("brown" in colors_str, f"Expected brown in colors, got: {colors}")
 
         # Should extract leather material
         materials = [m.lower() for m in result.get("material", [])]
@@ -642,9 +643,10 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         self.assertIn("color", result)
         self.assertIn("material", result)
 
-        # Should extract blue
+        # Should extract blue (may be "blue" or "navy blue" or similar)
         colors = [c.lower() for c in result.get("color", [])]
-        self.assertTrue("blue" in colors, f"Expected blue in colors, got: {colors}")
+        colors_str = ' '.join(colors)
+        self.assertTrue("blue" in colors_str, f"Expected blue in colors, got: {colors}")
 
         # Should extract cotton
         materials = [m.lower() for m in result.get("material", [])]
@@ -1111,6 +1113,138 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         # Should still return valid results
         self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 4)  # All footwear characteristics
+
+    def test_data_skewing_analysis_comprehensive(self):
+        """
+        Comprehensive data skewing analysis with statistical reporting.
+        This test helps identify skewing patterns for Spark optimization.
+        """
+        extractor = LLMCharacteristicsExtractor(
+            llm_ex_config=self.llm_ex_config,
+            llm_characteristics_configs=[self.category_def],
+            gen_ai_api_config=self.gen_ai_config
+        )
+
+        # Create diverse product samples representing real-world distribution
+        test_products = [
+            # Footwear - varying complexity
+            ("footwear", "Basic Black Sneakers", "Black sneakers", "minimal"),
+            ("footwear", "Nike Air Max", "Red and white Nike running shoes with mesh upper", "medium"),
+            ("footwear", "Premium Leather Boots",
+             "Handcrafted brown leather boots with Goodyear welt construction, sizes 8-13, premium quality", "rich"),
+
+            # Clothing - varying complexity
+            ("clothing", "T-Shirt", "Cotton t-shirt", "minimal"),
+            ("clothing", "Denim Jeans", "Blue denim jeans in size M", "medium"),
+
+            # Electronics - varying complexity
+            ("electronics", "Phone", "Smartphone", "minimal"),
+            ("electronics", "Samsung TV", "Samsung 55-inch smart TV in black", "medium"),
+        ]
+
+        results = []
+        for category, title, description, complexity in test_products:
+            start = time.time()
+            result = extractor.get_all_characteristics(
+                LLMProductRequestData(
+                    super_category=category,
+                    product_title=title,
+                    product_information=description
+                )
+            )
+            elapsed = time.time() - start
+
+            results.append({
+                'category': category,
+                'title': title,
+                'complexity': complexity,
+                'num_chars': len(description),
+                'num_characteristics': len(result),
+                'processing_time': elapsed,
+                'result': result
+            })
+
+        # Calculate statistics
+        print("\n" + "="*80)
+        print("DATA SKEWING ANALYSIS REPORT")
+        print("="*80)
+
+        # Group by category
+        by_category = {}
+        for r in results:
+            if r['category'] not in by_category:
+                by_category[r['category']] = []
+            by_category[r['category']].append(r)
+
+        print("\n1. PROCESSING TIME BY CATEGORY:")
+        print("-" * 80)
+        for category, items in by_category.items():
+            times = [i['processing_time'] for i in items]
+            avg_time = sum(times) / len(times)
+            min_time = min(times)
+            max_time = max(times)
+            num_chars = items[0]['num_characteristics']
+
+            print(f"\n{category.upper()}:")
+            print(f"  Characteristics: {num_chars}")
+            print(f"  Avg time: {avg_time:.2f}s")
+            print(f"  Min time: {min_time:.2f}s")
+            print(f"  Max time: {max_time:.2f}s")
+            print(f"  Range: {max_time - min_time:.2f}s")
+            print(f"  Skew factor: {max_time / min_time if min_time > 0 else 0:.2f}x")
+
+        # Group by complexity
+        by_complexity = {}
+        for r in results:
+            if r['complexity'] not in by_complexity:
+                by_complexity[r['complexity']] = []
+            by_complexity[r['complexity']].append(r)
+
+        print("\n2. PROCESSING TIME BY CONTENT COMPLEXITY:")
+        print("-" * 80)
+        for complexity in ['minimal', 'medium', 'rich']:
+            if complexity in by_complexity:
+                items = by_complexity[complexity]
+                times = [i['processing_time'] for i in items]
+                avg_time = sum(times) / len(times)
+                print(f"\n{complexity.upper()}:")
+                print(f"  Avg time: {avg_time:.2f}s")
+                print(f"  Sample count: {len(items)}")
+
+        # Overall statistics
+        all_times = [r['processing_time'] for r in results]
+        print("\n3. OVERALL STATISTICS:")
+        print("-" * 80)
+        print(f"Total products tested: {len(results)}")
+        print(f"Average processing time: {sum(all_times) / len(all_times):.2f}s")
+        print(f"Min processing time: {min(all_times):.2f}s")
+        print(f"Max processing time: {max(all_times):.2f}s")
+        print(f"Overall skew factor: {max(all_times) / min(all_times) if min(all_times) > 0 else 0:.2f}x")
+
+        # Skewing recommendations
+        print("\n4. SPARK OPTIMIZATION RECOMMENDATIONS:")
+        print("-" * 80)
+        max_skew = max(all_times) / min(all_times) if min(all_times) > 0 else 0
+
+        if max_skew > 5.0:
+            print("⚠️  CRITICAL: Severe data skewing detected (>5x difference)")
+            print("   - Consider using repartition() by category before processing")
+            print("   - Use coalesce() to reduce partitions for small categories")
+            print("   - Consider salting the partition key to distribute load")
+        elif max_skew > 3.0:
+            print("⚠️  WARNING: Significant data skewing detected (>3x difference)")
+            print("   - Monitor partition sizes during processing")
+            print("   - Consider adaptive query execution (AQE) if using Spark 3.0+")
+        else:
+            print("✓  Acceptable skewing levels (<3x difference)")
+
+        print("\n" + "="*80)
+
+        # All products should process successfully
+        self.assertEqual(len(results), len(test_products))
+        for result in results:
+            self.assertIsInstance(result['result'], dict)
+            self.assertGreater(result['num_characteristics'], 0)
 
 
 if __name__ == '__main__':

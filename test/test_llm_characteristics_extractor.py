@@ -467,20 +467,8 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Set up test fixtures for functional tests"""
         # LLM extractor config
         self.llm_ex_config = {
-            "system_prompt": """You are a product analyst. Extract characteristics from product descriptions.
-            Return ONLY valid JSON in the exact format shown in examples. Do not include any markdown formatting or code blocks.
-            
-            Example 1:
-            Product: Red leather Nike Air Max running shoes, available in sizes 9, 10, and 11
-            Characteristic: color
-            Output: {"color": ["red"]}
-            
-            Example 2:
-            Product: Black and white canvas sneakers made of cotton canvas
-            Characteristic: material
-            Output: {"material": ["canvas"]}
-            """,
-            "examples": ""
+            "system_prompt": "You are a Product Characteristics Extractor Tool.\n\nPurpose:\nExtract product characteristics from product information and return them in strict JSON format.\n\nSTRICT RULES:\n1. Return ONLY valid JSON - a dictionary mapping characteristic names to value arrays\n2. Format: {\"characteristic_name\": [\"value1\", \"value2\"], \"other_char\": [\"value\"]}\n3. Use double quotes only - NO single quotes\n4. NO markdown, explanations, or extra text outside the JSON\n5. For multi-value characteristics (is_multi=true): include ALL matching values\n6. For single-value characteristics (is_multi=false): include ONLY the most relevant value\n7. If no valid value found for a characteristic: use empty array []\n8. If product information is missing/null/\"N/A\": return empty arrays for all characteristics\n\nVALUE SELECTION LOGIC (CRITICAL):\n9. IF options list is provided and non-empty: you MUST choose ONLY from those options\n10. IF options list is empty or contains only \"<open_ended>\": freely determine/extract relevant values from product information\n11. NEVER extract values outside the provided options when options are specified\n12. Match values case-insensitively from options\n13. For boolean options (true/false), return string representation: [\"true\"] or [\"false\"]\n14. When information is ambiguous, prioritize specs > description > other fields",
+            "examples": "Examples:\n\nExample 1 - Strict Options (must choose from list):\nInput:\nProduct Data:\n   {\"product_title\": \"Running Shoes\", \"product_information\": \"Navy blue mesh athletic shoes\"}\nCharacteristic Information:\n   {\"characteristic\": \"color\", \"is_multi\":True, \"options\": [\"red\", \"blue\", \"black\", \"white\"]}\n\nExpected Output:\n{\"color\": [\"blue\"]}\n\nExample 2 - Open-ended (free extraction):\nInput:\nProduct Data:\n   {\"product_title\": \"Running Shoes\", \"product_information\": \"Navy blue mesh athletic shoes\"}\nCharacteristic Information:\n   {\"characteristic\": \"color\", \"is_multi\":True, \"options\": [\"<open_ended>\"]}\n\nExpected Output:\n{\"color\": [\"navy blue\"]}\n\nExample 3 - Multi-Characteristic with Mixed Constraints:\nInput:\nProduct Data:\n   {\"super_category\": \"footwear\", \"product_title\": \"Nike Air Max\", \"product_information\": \"Black mesh running shoes with gel cushioning\"}\nCharacteristic Information:\n   - color: {\"is_multi\":True, \"options\": [\"<open_ended>\"]}\n   - material: {\"is_multi\":True, \"options\": [\"leather\", \"mesh\", \"synthetic\"]}\n   - uses: {\"is_multi\":True, \"options\": [\"running\", \"walking\", \"casual\"]}\n\nExpected Output:\n{\"color\": [\"black\"], \"material\": [\"mesh\"], \"uses\": [\"running\"]}\n\nExample 4 - Boolean Characteristic:\nInput:\nProduct Data:\n   {\"product_title\": \"Adidas Ultraboost\"}\nCharacteristic Information:\n   {\"characteristic\": \"popular_brand\", \"is_multi\":False, \"options\": [true,False]}\n\nExpected Output:\n{\"popular_brand\": [\"true\"]}"
         }
 
         # Category definition config with multiple categories

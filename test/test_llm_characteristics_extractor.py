@@ -474,59 +474,1257 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         # Category definition config with multiple categories
         # In real-world usage, this would be loaded from JSON files using Utility.read_in_json_file()
         # and passed as a list of dictionaries to the constructor
-        self.category_def = {
-            "footwear": {
-                "color": {
-                    "description": "The color or colors of the footwear",
-                    "is_multi": True,
-                    "options": ["red", "blue", "green", "black", "white", "brown", "gray", "yellow", "orange", "purple"]
-                },
-                "material": {
-                    "description": "The material the footwear is made from",
-                    "is_multi": True,
-                    "options": ["leather", "synthetic", "canvas", "suede", "mesh", "rubber", "textile"]
-                },
-                "size": {
-                    "description": "Available shoe sizes",
-                    "is_multi": True,
-                    "options": ["6", "7", "8", "9", "10", "11", "12", "13"]
-                },
-                "type": {
-                    "description": "Type of footwear",
-                    "is_multi": False,
-                    "options": ["sneakers", "boots", "sandals", "dress shoes", "running shoes", "casual shoes"]
-                }
-            },
-            "clothing": {
-                "color": {
-                    "description": "The color or colors of the clothing item",
-                    "is_multi": True,
-                    "options": ["red", "blue", "green", "black", "white", "brown", "gray", "yellow", "orange", "purple"]
-                },
-                "size": {
-                    "description": "Available clothing sizes",
-                    "is_multi": True,
-                    "options": ["XS", "S", "M", "L", "XL", "XXL"]
-                },
-                "material": {
-                    "description": "The fabric or material",
-                    "is_multi": True,
-                    "options": ["cotton", "polyester", "wool", "silk", "denim", "leather"]
-                }
-            },
-            "electronics": {
-                "brand": {
-                    "description": "The brand or manufacturer",
-                    "is_multi": False,
-                    "options": ["Apple", "Samsung", "Sony", "LG", "Dell", "HP", "Lenovo"]
-                },
-                "color": {
-                    "description": "The color of the device",
-                    "is_multi": True,
-                    "options": ["black", "white", "silver", "gray", "blue", "red"]
-                }
-            }
+        self.category_def = [
+    {
+      "footwear": {
+        "color": {
+          "description": "The primary color or color combinations of the footwear.",
+          "is_multi": True,
+          "options": [
+            "<open_ended>"
+          ]
+        },
+        "uses": {
+          "description": "The intended activities or purposes for which the footwear is designed.",
+          "is_multi": True,
+          "options": [
+            "hiking",
+            "running",
+            "basketball",
+            "casual",
+            "formal",
+            "training",
+            "walking",
+            "work"
+          ]
+        },
+        "comfort_feel": {
+          "description": "The level of comfort and sensation experienced while wearing the footwear.",
+          "is_multi": True,
+          "options": [
+            "soft",
+            "firm",
+            "cushioned",
+            "supportive",
+            "lightweight"
+          ]
+        },
+        "material": {
+          "description": "The primary material used in the construction of the footwear.",
+          "is_multi": True,
+          "options": [
+            "leather",
+            "suede",
+            "mesh",
+            "synthetic",
+            "canvas",
+            "rubber",
+            "knit"
+          ]
+        },
+        "popular_brand": {
+          "description": "Indicates whether the footwear belongs to a well-known or popular brand.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "shape": {
+          "description": "The general structure or design of the footwear.",
+          "is_multi": True,
+          "options": [
+            "low top",
+            "high top",
+            "mid top",
+            "slip-on",
+            "lace-up",
+            "boot"
+          ]
+        },
+        "style": {
+          "description": "The aesthetic and functional style of the footwear.",
+          "is_multi": True,
+          "options": [
+            "performance",
+            "luxury",
+            "retro",
+            "minimalist",
+            "streetwear",
+            "athleisure",
+            "formal"
+          ]
+        },
+        "heel_height": {
+          "description": "The height of the heel, which affects posture and style.",
+          "is_multi": True,
+          "options": [
+            "high",
+            "medium",
+            "low",
+            "flat",
+            "platform"
+          ]
         }
+      }
+    },
+    {
+      "smartphones": {
+        "brand": {
+          "description": "The manufacturer or brand of the smartphone.",
+          "is_multi": False,
+          "options": [
+            "Apple",
+            "Samsung",
+            "Google",
+            "OnePlus",
+            "Xiaomi",
+            "Motorola",
+            "Nokia",
+            "Sony",
+            "LG",
+            "Other"
+          ]
+        },
+        "operating_system": {
+          "description": "The operating system running on the smartphone.",
+          "is_multi": False,
+          "options": [
+            "iOS",
+            "Android"
+          ]
+        },
+        "screen_size": {
+          "description": "The display size category of the smartphone.",
+          "is_multi": False,
+          "options": [
+            "small (under 6 inches)",
+            "medium (6-6.5 inches)",
+            "large (6.5-7 inches)",
+            "extra large (over 7 inches)"
+          ]
+        },
+        "storage_capacity": {
+          "description": "Internal storage capacity of the smartphone.",
+          "is_multi": True,
+          "options": [
+            "32GB",
+            "64GB",
+            "128GB",
+            "256GB",
+            "512GB",
+            "1TB"
+          ]
+        },
+        "camera_quality": {
+          "description": "The camera system quality level.",
+          "is_multi": False,
+          "options": [
+            "basic",
+            "good",
+            "excellent",
+            "professional"
+          ]
+        },
+        "5g_capable": {
+          "description": "Whether the smartphone supports 5G connectivity.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "battery_life": {
+          "description": "Expected battery performance category.",
+          "is_multi": False,
+          "options": [
+            "short (under 3000mAh)",
+            "average (3000-4500mAh)",
+            "long (4500-5500mAh)",
+            "extra long (over 5500mAh)"
+          ]
+        },
+        "price_tier": {
+          "description": "The market positioning and price range of the device.",
+          "is_multi": False,
+          "options": [
+            "budget",
+            "mid-range",
+            "flagship",
+            "ultra-premium"
+          ]
+        }
+      }
+    },
+    {
+      "televisions": {
+        "screen_size": {
+          "description": "The diagonal screen size of the television.",
+          "is_multi": False,
+          "options": [
+            "32 inch",
+            "40 inch",
+            "43 inch",
+            "50 inch",
+            "55 inch",
+            "65 inch",
+            "75 inch",
+            "77 inch",
+            "85 inch",
+            "over 85 inch"
+          ]
+        },
+        "resolution": {
+          "description": "The display resolution of the television.",
+          "is_multi": False,
+          "options": [
+            "HD (720p)",
+            "Full HD (1080p)",
+            "4K (2160p)",
+            "8K (4320p)"
+          ]
+        },
+        "display_technology": {
+          "description": "The type of display panel technology used.",
+          "is_multi": False,
+          "options": [
+            "LED",
+            "QLED",
+            "OLED",
+            "Mini-LED",
+            "Micro-LED",
+            "LCD"
+          ]
+        },
+        "smart_tv": {
+          "description": "Whether the TV has smart/streaming capabilities built-in.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "hdr_support": {
+          "description": "High Dynamic Range formats supported by the TV.",
+          "is_multi": True,
+          "options": [
+            "HDR10",
+            "HDR10+",
+            "Dolby Vision",
+            "HLG",
+            "none"
+          ]
+        },
+        "refresh_rate": {
+          "description": "The screen refresh rate in Hz.",
+          "is_multi": False,
+          "options": [
+            "60Hz",
+            "120Hz",
+            "144Hz",
+            "240Hz"
+          ]
+        },
+        "brand": {
+          "description": "The manufacturer or brand of the television.",
+          "is_multi": False,
+          "options": [
+            "Samsung",
+            "LG",
+            "Sony",
+            "TCL",
+            "Hisense",
+            "Vizio",
+            "Panasonic",
+            "Philips",
+            "Other"
+          ]
+        }
+      }
+    },
+    {
+      "computers": {
+        "form_factor": {
+          "description": "The physical form and portability of the computer.",
+          "is_multi": False,
+          "options": [
+            "laptop",
+            "desktop",
+            "all-in-one",
+            "mini pc",
+            "workstation"
+          ]
+        },
+        "processor_brand": {
+          "description": "The CPU manufacturer.",
+          "is_multi": False,
+          "options": [
+            "Intel",
+            "AMD",
+            "Apple Silicon",
+            "Other"
+          ]
+        },
+        "processor_tier": {
+          "description": "The performance tier of the processor.",
+          "is_multi": False,
+          "options": [
+            "entry level (i3, Ryzen 3)",
+            "mid range (i5, Ryzen 5)",
+            "high end (i7, Ryzen 7)",
+            "extreme (i9, Ryzen 9, Threadripper)"
+          ]
+        },
+        "ram_capacity": {
+          "description": "The amount of system memory (RAM).",
+          "is_multi": False,
+          "options": [
+            "4GB",
+            "8GB",
+            "16GB",
+            "32GB",
+            "64GB",
+            "128GB or more"
+          ]
+        },
+        "storage_type": {
+          "description": "The type of primary storage drive.",
+          "is_multi": True,
+          "options": [
+            "HDD",
+            "SSD",
+            "NVMe SSD",
+            "Hybrid"
+          ]
+        },
+        "graphics_card": {
+          "description": "The GPU configuration of the computer.",
+          "is_multi": False,
+          "options": [
+            "integrated",
+            "dedicated entry (GTX 1650, RX 6500)",
+            "dedicated mid (RTX 3060/4060, RX 6600/7600)",
+            "dedicated high (RTX 3080/4070, RX 6800/7800)",
+            "dedicated extreme (RTX 4080/4090, RX 7900)"
+          ]
+        },
+        "use_case": {
+          "description": "The primary intended use or target audience.",
+          "is_multi": True,
+          "options": [
+            "gaming",
+            "business",
+            "content creation",
+            "programming",
+            "general use",
+            "student",
+            "professional workstation"
+          ]
+        },
+        "operating_system": {
+          "description": "The pre-installed operating system.",
+          "is_multi": False,
+          "options": [
+            "Windows",
+            "macOS",
+            "Linux",
+            "Chrome OS",
+            "None"
+          ]
+        },
+        "screen_size": {
+          "description": "Display size for laptops or all-in-ones.",
+          "is_multi": False,
+          "options": [
+            "11-13 inch",
+            "14-15 inch",
+            "16-17 inch",
+            "18+ inch",
+            "N/A (desktop)"
+          ]
+        }
+      }
+    },
+    {
+      "headphones_audio": {
+        "type": {
+          "description": "The form factor and style of the audio device.",
+          "is_multi": False,
+          "options": [
+            "over-ear headphones",
+            "on-ear headphones",
+            "in-ear earbuds",
+            "wireless earbuds",
+            "gaming headset",
+            "studio monitor headphones",
+            "bluetooth speaker",
+            "smart speaker",
+            "soundbar"
+          ]
+        },
+        "connectivity": {
+          "description": "How the device connects to audio sources.",
+          "is_multi": True,
+          "options": [
+            "wired (3.5mm)",
+            "wired (USB)",
+            "bluetooth",
+            "wifi",
+            "wireless (proprietary)"
+          ]
+        },
+        "noise_cancellation": {
+          "description": "Active noise cancellation capability.",
+          "is_multi": False,
+          "options": [
+            "active (ANC)",
+            "passive",
+            "none"
+          ]
+        },
+        "battery_life": {
+          "description": "Expected battery duration for wireless devices.",
+          "is_multi": False,
+          "options": [
+            "short (under 10 hours)",
+            "medium (10-20 hours)",
+            "long (20-40 hours)",
+            "extra long (over 40 hours)",
+            "N/A (wired)"
+          ]
+        },
+        "brand": {
+          "description": "The manufacturer or brand.",
+          "is_multi": False,
+          "options": [
+            "Sony",
+            "Bose",
+            "Apple",
+            "Samsung",
+            "Sennheiser",
+            "Audio-Technica",
+            "JBL",
+            "Beats",
+            "Anker",
+            "Other"
+          ]
+        },
+        "use_case": {
+          "description": "The primary intended use.",
+          "is_multi": True,
+          "options": [
+            "music listening",
+            "gaming",
+            "calls/meetings",
+            "sports/fitness",
+            "travel",
+            "studio/professional",
+            "home theater"
+          ]
+        },
+        "water_resistance": {
+          "description": "Water and sweat resistance rating.",
+          "is_multi": False,
+          "options": [
+            "none",
+            "splash resistant",
+            "IPX4 (sweat resistant)",
+            "IPX7 (waterproof)",
+            "IP67 or higher"
+          ]
+        }
+      }
+    },
+    {
+      "tablets": {
+        "brand": {
+          "description": "The manufacturer or brand of the tablet.",
+          "is_multi": False,
+          "options": [
+            "Apple",
+            "Samsung",
+            "Microsoft",
+            "Amazon",
+            "Lenovo",
+            "Google",
+            "Other"
+          ]
+        },
+        "operating_system": {
+          "description": "The operating system running on the tablet.",
+          "is_multi": False,
+          "options": [
+            "iPadOS",
+            "Android",
+            "Windows",
+            "Fire OS"
+          ]
+        },
+        "screen_size": {
+          "description": "The display size category of the tablet.",
+          "is_multi": False,
+          "options": [
+            "small (7-8 inches)",
+            "medium (9-10 inches)",
+            "large (11-12 inches)",
+            "extra large (13+ inches)"
+          ]
+        },
+        "storage_capacity": {
+          "description": "Internal storage capacity of the tablet.",
+          "is_multi": True,
+          "options": [
+            "32GB",
+            "64GB",
+            "128GB",
+            "256GB",
+            "512GB",
+            "1TB"
+          ]
+        },
+        "cellular_capable": {
+          "description": "Whether the tablet supports cellular connectivity.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "stylus_support": {
+          "description": "Support for digital pen/stylus input.",
+          "is_multi": False,
+          "options": [
+            "yes (included)",
+            "yes (sold separately)",
+            "no"
+          ]
+        },
+        "use_case": {
+          "description": "The primary intended use.",
+          "is_multi": True,
+          "options": [
+            "entertainment",
+            "productivity",
+            "creative work",
+            "education",
+            "reading",
+            "kids"
+          ]
+        }
+      }
+    },
+    {
+      "smartwatches_wearables": {
+        "type": {
+          "description": "The category of wearable device.",
+          "is_multi": False,
+          "options": [
+            "smartwatch",
+            "fitness tracker",
+            "hybrid watch",
+            "fitness band"
+          ]
+        },
+        "brand": {
+          "description": "The manufacturer or brand.",
+          "is_multi": False,
+          "options": [
+            "Apple",
+            "Samsung",
+            "Garmin",
+            "Fitbit",
+            "Google",
+            "Amazfit",
+            "Polar",
+            "Huawei",
+            "Other"
+          ]
+        },
+        "compatibility": {
+          "description": "Compatible smartphone platforms.",
+          "is_multi": True,
+          "options": [
+            "iOS",
+            "Android",
+            "both"
+          ]
+        },
+        "fitness_features": {
+          "description": "Health and fitness tracking capabilities.",
+          "is_multi": True,
+          "options": [
+            "heart rate",
+            "GPS",
+            "sleep tracking",
+            "step counter",
+            "SpO2",
+            "ECG",
+            "temperature",
+            "stress monitoring",
+            "workout modes"
+          ]
+        },
+        "battery_life": {
+          "description": "Expected battery duration.",
+          "is_multi": False,
+          "options": [
+            "1 day",
+            "2-3 days",
+            "4-7 days",
+            "1-2 weeks",
+            "over 2 weeks"
+          ]
+        },
+        "display_type": {
+          "description": "The type of display screen.",
+          "is_multi": False,
+          "options": [
+            "AMOLED",
+            "LCD",
+            "E-ink",
+            "OLED",
+            "none (band only)"
+          ]
+        },
+        "water_resistance": {
+          "description": "Water resistance rating.",
+          "is_multi": False,
+          "options": [
+            "none",
+            "splash resistant",
+            "swim proof (5ATM)",
+            "dive proof (10ATM or higher)"
+          ]
+        }
+      }
+    },
+    {
+      "cameras": {
+        "type": {
+          "description": "The category and form factor of the camera.",
+          "is_multi": False,
+          "options": [
+            "DSLR",
+            "mirrorless",
+            "action camera",
+            "point-and-shoot",
+            "webcam",
+            "instant camera",
+            "film camera"
+          ]
+        },
+        "sensor_size": {
+          "description": "The image sensor size.",
+          "is_multi": False,
+          "options": [
+            "full frame",
+            "APS-C",
+            "Micro Four Thirds",
+            "1 inch",
+            "smaller than 1 inch"
+          ]
+        },
+        "megapixels": {
+          "description": "Resolution in megapixels.",
+          "is_multi": False,
+          "options": [
+            "under 12MP",
+            "12-24MP",
+            "24-36MP",
+            "36-50MP",
+            "over 50MP"
+          ]
+        },
+        "video_capability": {
+          "description": "Maximum video resolution.",
+          "is_multi": True,
+          "options": [
+            "HD (1080p)",
+            "4K",
+            "6K",
+            "8K",
+            "slow motion",
+            "none"
+          ]
+        },
+        "lens_mount": {
+          "description": "The camera lens mount system (for interchangeable lens cameras).",
+          "is_multi": False,
+          "options": [
+            "Canon EF/RF",
+            "Nikon F/Z",
+            "Sony E",
+            "Fujifilm X",
+            "Micro Four Thirds",
+            "Pentax K",
+            "fixed lens",
+            "N/A"
+          ]
+        },
+        "use_case": {
+          "description": "The primary intended use.",
+          "is_multi": True,
+          "options": [
+            "professional photography",
+            "vlogging",
+            "action/sports",
+            "wildlife",
+            "portrait",
+            "landscape",
+            "video calls",
+            "streaming",
+            "casual/beginner"
+          ]
+        },
+        "stabilization": {
+          "description": "Image stabilization capabilities.",
+          "is_multi": True,
+          "options": [
+            "in-body (IBIS)",
+            "optical (lens)",
+            "electronic",
+            "none"
+          ]
+        }
+      }
+    },
+    {
+      "gaming_consoles": {
+        "brand": {
+          "description": "The console manufacturer.",
+          "is_multi": False,
+          "options": [
+            "Sony",
+            "Microsoft",
+            "Nintendo",
+            "Valve",
+            "Other"
+          ]
+        },
+        "console_generation": {
+          "description": "The generation or model of the gaming console.",
+          "is_multi": False,
+          "options": [
+            "PlayStation 5",
+            "PlayStation 4",
+            "Xbox Series X/S",
+            "Xbox One",
+            "Nintendo Switch",
+            "Steam Deck",
+            "Other"
+          ]
+        },
+        "storage_capacity": {
+          "description": "Internal storage size.",
+          "is_multi": True,
+          "options": [
+            "500GB",
+            "1TB",
+            "2TB",
+            "expandable"
+          ]
+        },
+        "resolution_support": {
+          "description": "Maximum display resolution supported.",
+          "is_multi": True,
+          "options": [
+            "1080p",
+            "1440p",
+            "4K",
+            "8K"
+          ]
+        },
+        "form_factor": {
+          "description": "Whether the console is portable or stationary.",
+          "is_multi": False,
+          "options": [
+            "home console",
+            "handheld",
+            "hybrid"
+          ]
+        },
+        "vr_capable": {
+          "description": "Virtual reality headset compatibility.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "disc_drive": {
+          "description": "Physical media support.",
+          "is_multi": False,
+          "options": [
+            "yes",
+            "no (digital only)"
+          ]
+        }
+      }
+    },
+    {
+      "monitors": {
+        "screen_size": {
+          "description": "The diagonal screen size of the monitor.",
+          "is_multi": False,
+          "options": [
+            "21-24 inch",
+            "25-27 inch",
+            "28-32 inch",
+            "34-38 inch (ultrawide)",
+            "over 38 inch"
+          ]
+        },
+        "resolution": {
+          "description": "The display resolution.",
+          "is_multi": False,
+          "options": [
+            "Full HD (1920x1080)",
+            "QHD (2560x1440)",
+            "4K (3840x2160)",
+            "5K (5120x2880)",
+            "ultrawide (2560x1080)",
+            "ultrawide QHD (3440x1440)",
+            "ultrawide 4K (3840x1600)"
+          ]
+        },
+        "panel_type": {
+          "description": "The display panel technology.",
+          "is_multi": False,
+          "options": [
+            "IPS",
+            "VA",
+            "TN",
+            "OLED",
+            "Mini-LED"
+          ]
+        },
+        "refresh_rate": {
+          "description": "The screen refresh rate in Hz.",
+          "is_multi": False,
+          "options": [
+            "60Hz",
+            "75Hz",
+            "120Hz",
+            "144Hz",
+            "165Hz",
+            "240Hz",
+            "360Hz or higher"
+          ]
+        },
+        "response_time": {
+          "description": "Pixel response time in milliseconds.",
+          "is_multi": False,
+          "options": [
+            "1ms",
+            "2-4ms",
+            "5ms or higher"
+          ]
+        },
+        "use_case": {
+          "description": "The primary intended use.",
+          "is_multi": True,
+          "options": [
+            "gaming",
+            "professional/color work",
+            "general use",
+            "productivity",
+            "content creation"
+          ]
+        },
+        "hdr_support": {
+          "description": "High Dynamic Range support.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "adaptive_sync": {
+          "description": "Variable refresh rate technology.",
+          "is_multi": True,
+          "options": [
+            "G-Sync",
+            "FreeSync",
+            "G-Sync Compatible",
+            "none"
+          ]
+        },
+        "curved": {
+          "description": "Whether the monitor has a curved screen.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        }
+      }
+    },
+    {
+      "keyboards_mice": {
+        "device_type": {
+          "description": "The category of input device.",
+          "is_multi": False,
+          "options": [
+            "keyboard",
+            "mouse",
+            "keyboard and mouse combo"
+          ]
+        },
+        "connectivity": {
+          "description": "How the device connects to the computer.",
+          "is_multi": False,
+          "options": [
+            "wired (USB)",
+            "wired (USB-C)",
+            "wireless (Bluetooth)",
+            "wireless (2.4GHz dongle)",
+            "dual mode (wired/wireless)"
+          ]
+        },
+        "keyboard_type": {
+          "description": "The type of keyboard mechanism (for keyboards).",
+          "is_multi": False,
+          "options": [
+            "mechanical",
+            "membrane",
+            "scissor switch",
+            "optical",
+            "N/A"
+          ]
+        },
+        "switch_type": {
+          "description": "Mechanical switch type (for mechanical keyboards).",
+          "is_multi": False,
+          "options": [
+            "linear (red)",
+            "tactile (brown)",
+            "clicky (blue)",
+            "silent",
+            "low profile",
+            "N/A"
+          ]
+        },
+        "form_factor": {
+          "description": "The size and layout (for keyboards).",
+          "is_multi": False,
+          "options": [
+            "full size (100%)",
+            "tenkeyless (80%)",
+            "compact (75%)",
+            "60%",
+            "ergonomic",
+            "N/A"
+          ]
+        },
+        "mouse_sensor": {
+          "description": "The sensor type (for mice).",
+          "is_multi": False,
+          "options": [
+            "optical",
+            "laser",
+            "N/A"
+          ]
+        },
+        "dpi_range": {
+          "description": "Maximum DPI/sensitivity (for mice).",
+          "is_multi": False,
+          "options": [
+            "under 3000",
+            "3000-6000",
+            "6000-12000",
+            "12000-20000",
+            "over 20000",
+            "N/A"
+          ]
+        },
+        "use_case": {
+          "description": "The primary intended use.",
+          "is_multi": True,
+          "options": [
+            "gaming",
+            "office/productivity",
+            "programming",
+            "creative work",
+            "ergonomic/health",
+            "travel"
+          ]
+        },
+        "rgb_lighting": {
+          "description": "RGB backlighting capability.",
+          "is_multi": False,
+          "options": [
+            "full RGB",
+            "single color backlight",
+            "none"
+          ]
+        },
+        "ergonomic_design": {
+          "description": "Special ergonomic features.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        }
+      }
+    },
+    {
+      "smart_home": {
+        "device_type": {
+          "description": "The category of smart home device.",
+          "is_multi": False,
+          "options": [
+            "smart bulb",
+            "smart light strip",
+            "smart plug",
+            "smart switch",
+            "security camera",
+            "video doorbell",
+            "smart thermostat",
+            "smart lock",
+            "smart speaker",
+            "hub/controller"
+          ]
+        },
+        "voice_assistant": {
+          "description": "Compatible voice assistants.",
+          "is_multi": True,
+          "options": [
+            "Alexa",
+            "Google Assistant",
+            "Siri/HomeKit",
+            "none"
+          ]
+        },
+        "connectivity": {
+          "description": "Wireless connectivity protocol.",
+          "is_multi": True,
+          "options": [
+            "WiFi",
+            "Bluetooth",
+            "Zigbee",
+            "Z-Wave",
+            "Thread",
+            "Matter"
+          ]
+        },
+        "power_source": {
+          "description": "How the device is powered.",
+          "is_multi": False,
+          "options": [
+            "AC plug",
+            "battery",
+            "wired (low voltage)",
+            "solar",
+            "hybrid"
+          ]
+        },
+        "hub_required": {
+          "description": "Whether a separate hub is required for operation.",
+          "is_multi": False,
+          "options": [
+           True,
+           False
+          ]
+        },
+        "indoor_outdoor": {
+          "description": "Intended installation location.",
+          "is_multi": False,
+          "options": [
+            "indoor only",
+            "outdoor rated",
+            "both"
+          ]
+        },
+        "video_resolution": {
+          "description": "Video recording quality (for cameras/doorbells).",
+          "is_multi": False,
+          "options": [
+            "720p",
+            "1080p",
+            "2K",
+            "4K",
+            "N/A"
+          ]
+        }
+      }
+    },
+    {
+      "power_charging": {
+        "device_type": {
+          "description": "The category of power/charging device.",
+          "is_multi": False,
+          "options": [
+            "power bank",
+            "wall charger",
+            "car charger",
+            "wireless charger",
+            "charging cable",
+            "charging station/dock"
+          ]
+        },
+        "capacity": {
+          "description": "Battery capacity in mAh (for power banks).",
+          "is_multi": False,
+          "options": [
+            "under 5000mAh",
+            "5000-10000mAh",
+            "10000-20000mAh",
+            "20000-30000mAh",
+            "over 30000mAh",
+            "N/A"
+          ]
+        },
+        "output_power": {
+          "description": "Maximum charging power output in watts.",
+          "is_multi": False,
+          "options": [
+            "under 18W",
+            "18-30W",
+            "30-65W",
+            "65-100W",
+            "over 100W"
+          ]
+        },
+        "port_types": {
+          "description": "Available charging ports.",
+          "is_multi": True,
+          "options": [
+            "USB-A",
+            "USB-C",
+            "Lightning",
+            "Micro USB",
+            "wireless"
+          ]
+        },
+        "fast_charging": {
+          "description": "Fast charging protocol support.",
+          "is_multi": True,
+          "options": [
+            "USB Power Delivery (PD)",
+            "Quick Charge",
+            "MagSafe",
+            "Qi wireless",
+            "proprietary",
+            "none"
+          ]
+        },
+        "number_of_ports": {
+          "description": "Number of simultaneous charging ports.",
+          "is_multi": False,
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4 or more"
+          ]
+        },
+        "portability": {
+          "description": "Size and portability factor.",
+          "is_multi": False,
+          "options": [
+            "pocket size",
+            "compact",
+            "standard",
+            "large/stationary"
+          ]
+        }
+      }
+    },
+    {
+      "storage": {
+        "device_type": {
+          "description": "The category of storage device.",
+          "is_multi": False,
+          "options": [
+            "external HDD",
+            "external SSD",
+            "internal SSD",
+            "internal HDD",
+            "USB flash drive",
+            "SD card",
+            "microSD card",
+            "NAS drive"
+          ]
+        },
+        "capacity": {
+          "description": "Storage capacity.",
+          "is_multi": False,
+          "options": [
+            "under 128GB",
+            "128-256GB",
+            "256GB-512GB",
+            "512GB-1TB",
+            "1-2TB",
+            "2-4TB",
+            "4-8TB",
+            "over 8TB"
+          ]
+        },
+        "interface": {
+          "description": "Connection interface type.",
+          "is_multi": False,
+          "options": [
+            "USB 2.0",
+            "USB 3.0/3.1",
+            "USB 3.2",
+            "USB-C",
+            "Thunderbolt 3/4",
+            "SATA",
+            "NVMe (M.2)",
+            "SD/microSD slot"
+          ]
+        },
+        "form_factor": {
+          "description": "Physical size and form.",
+          "is_multi": False,
+          "options": [
+            "2.5 inch",
+            "3.5 inch",
+            "M.2",
+            "portable/pocket",
+            "card",
+            "stick"
+          ]
+        },
+        "read_speed": {
+          "description": "Approximate read speed category.",
+          "is_multi": False,
+          "options": [
+            "under 100MB/s",
+            "100-500MB/s",
+            "500-1000MB/s",
+            "1000-3000MB/s",
+            "over 3000MB/s"
+          ]
+        },
+        "durability": {
+          "description": "Physical durability features.",
+          "is_multi": True,
+          "options": [
+            "shock resistant",
+            "water resistant",
+            "dust proof",
+            "rugged enclosure",
+            "standard"
+          ]
+        },
+        "use_case": {
+          "description": "Primary intended use.",
+          "is_multi": True,
+          "options": [
+            "backup",
+            "portable storage",
+            "gaming",
+            "photography/video",
+            "system drive",
+            "cache/scratch disk",
+            "archive"
+          ]
+        }
+      }
+    }
+  ]
 
         # Gen AI API config - points to local Ollama instance
         self.gen_ai_config = {
@@ -547,7 +1745,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         # Pass category config as list of dicts (real-world usage)
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -583,7 +1781,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Test extraction with complex footwear description"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -612,7 +1810,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Test extraction with clothing product"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -640,11 +1838,57 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         materials = [m.lower() for m in result.get("material", [])]
         self.assertTrue("cotton" in materials, f"Expected cotton in materials, got: {materials}")
 
+    def test_live_extraction_skewing_bug_sde_84(self):
+        """Test extraction with electronics product (Motorola smartphone) - SDE-84 bug fix"""
+        extractor = LLMCharacteristicsExtractor(
+            llm_ex_config=self.llm_ex_config,
+            llm_characteristics_configs=self.category_def,
+            gen_ai_api_config=self.gen_ai_config
+        )
+
+        # Real product data from production - using string repr to avoid Unicode issues
+        product_data = """specs={'description': 'The moto g Play from Tracfone dials up the excitement without losing function. Feel the power of the new Snapdragon 680 processor and indulge your ears with Dolby Atmos and High-Res Audio. Take spectacular selfies with an 8MP front camera and capture night photos like a true professional with Quad Pixel technology. Since you'll be taking a ton of photos - hold everything you need with 64GB of internal storage, expandable to 1TB with a microSD card. And with a long-lasting 5000mAh battery - do it all on the Network America relies on, with speed, hotspot capability, international calling and exclusive discounts. Plus every Tracfone plan comes with Unlimited Carryover, so you keep unused monthly data, texts or minutes for when you need them most*. Stay in control with a moto g Play from Tracfone. Get a single line unlimited talk & text plus data plan starting at only $20/month with no contract. To activate this device, a Tracfone plan is required. *Service must be active and in use within any six month period.', 'battery_life': 'Up to 3 days', 'battery_charging_technology': 'Rapid charging', 'battery_capacity': '5000 mAh', 'battery_standby_time': ['Up to 498 hrs', '22 days', 'Up to 444 hrs'], 'battery_talk_time': ['Up to 3000 min', 'Up to 2160 min'], 'display_size': '6.5 in', 'touch_screen': 'Yes', 'display_resolution': 'HD+', 'display_pixel_density': '269 ppi', 'display_technology': 'LCD', 'display_type': 'IPS LCD', 'display_aspect_ratio': '20:9', 'display_refresh_rate': '90Hz', 'display_highlights': 'Touch screen', 'camera_resolution': '13.0 MP', 'camera_zoom': 'High-res zoom', 'camera_video_resolution': ['HD (30fps) (Rear Macro)', 'FHD (30fps) (Front)', 'FHD (30fps) (Rear Main)'], 'camera_aperture': ['f/2.4 (Rear Macro)', 'f/1.22 (Rear Main)', 'f/2.4 (Front)', 'f/2.4 (Rear Depth)'], 'camera_highlights': 'Dual Rear Cameras', 'digital_zoom': 'High-res zoom', 'camera_lens_count': 'Dual Rear Cameras', 'focus_adjustment': 'Auto Focus (Rear Main)', 'camera_light_source': 'Single LED flash', 'ports_and_interfaces': 'USB Type-C', 'sim_support': 'Single SIM', 'wi_fi': 'Wi-Fi', 'wireless_interface': ['Wi-Fi', 'Bluetooth'], 'broadband_generation': '4G', 'data_transmission': 'LTE', 'gps_type': 'GPS', 'bluetooth': 'Bluetooth', 'cell_band': ['UMTS band 1/2/4/5/8 (3G)', 'CDMA: BC0 BC1 BC10', 'GSM band 2/3/5/8 (2G)', 'LTE band 1/2/3/4/5/7/8/12/13/14/17/18/19/20/25/26/29/30/38/39/40/41/66/71 (4G)'], 'nfc': 'No', 'connectivity_highlights': 'Hotspot', 'lte_band': 'Band 1/2/3/4/5/7/8/12/13/14/17/18/19/20/25/26/29/30/38/39/40/41/66/71', 'sim_card_type': 'Nano SIM', 'product_type': 'Smartphone', 'buttons': ['Volume buttons', 'Power button', 'Vibrate/ringer switch'], 'hardware_sensors': ['Accelerometer', 'Proximity Sensor'], 'keyboard_support': 'QWERTY Keyboard', 'supported_os': 'Android', 'os_version': 'Android 10', 'security_highlights': 'Fingerprint Sensor', 'expandable_storage': 'Yes', 'supported_flash_memory_cards': 'microSDXC', 'dimensions': '167.24 x 76.54 x 9.36 mm', 'form_factor': 'Bar', 'durability': 'Water-repellent design', 'weight': '203 g', 'body_material': 'Plastic', 'design_highlights': 'Water-repellent design', 'keyboard': 'QWERTY Keyboard', 'headphone_jack': ['Yes', '3.5mm headset jack'], 'hearing_aid_compatibility': 'Yes (HAC)', 'speaker': 'Speakerphone', 'microphone': '2 Microphones', 'supported_media': 'Music Player', 'included_accessories': '10w Charger', 'gpu': 'Qualcomm ADRENO 610', 'number_of_cpu_cores': 'Octa Core', 'processor': ['Qualcomm Snapdragon 460', 'Octa Core'], 'cpu_clock_speed': '1.8 GHz', 'epeat_rating': 'A', 'top_use_cases': ['Video chats', 'Games', 'Movies'], 'typical_users': 'Students'}
+        description={'description': 'The moto g Play from Tracfone dials up the excitement without losing function. Feel the power of the new Snapdragon 680 processor and indulge your ears with Dolby Atmos and High-Res Audio. Take spectacular selfies with an 8MP front camera and capture night photos like a true professional with Quad Pixel technology. Since you'll be taking a ton of photos - hold everything you need with 64GB of internal storage, expandable to 1TB with a microSD card. And with a long-lasting 5000mAh battery - do it all on the Network America relies on, with speed, hotspot capability, international calling and exclusive discounts. Plus every Tracfone plan comes with Unlimited Carryover, so you keep unused monthly data, texts or minutes for when you need them most*. Stay in control with a moto g Play from Tracfone. Get a single line unlimited talk & text plus data plan starting at only $20/month with no contract. To activate this device, a Tracfone plan is required. *Service must be active and in use within any six month period.', 'battery_life': 'Up to 3 days', 'battery_charging_technology': 'Rapid charging', 'battery_capacity': '5000 mAh', 'battery_standby_time': ['Up to 498 hrs', '22 days', 'Up to 444 hrs'], 'battery_talk_time': ['Up to 3000 min', 'Up to 2160 min'], 'display_size': '6.5 in', 'touch_screen': 'Yes', 'display_resolution': 'HD+', 'display_pixel_density': '269 ppi', 'display_technology': 'LCD', 'display_type': 'IPS LCD', 'display_aspect_ratio': '20:9', 'display_refresh_rate': '90Hz', 'display_highlights': 'Touch screen', 'camera_resolution': '13.0 MP', 'camera_zoom': 'High-res zoom', 'camera_video_resolution': ['HD (30fps) (Rear Macro)', 'FHD (30fps) (Front)', 'FHD (30fps) (Rear Main)'], 'camera_aperture': ['f/2.4 (Rear Macro)', 'f/1.22 (Rear Main)', 'f/2.4 (Front)', 'f/2.4 (Rear Depth)'], 'camera_highlights': 'Dual Rear Cameras', 'digital_zoom': 'High-res zoom', 'camera_lens_count': 'Dual Rear Cameras', 'focus_adjustment': 'Auto Focus (Rear Main)', 'camera_light_source': 'Single LED flash', 'ports_and_interfaces': 'USB Type-C', 'sim_support': 'Single SIM', 'wi_fi': 'Wi-Fi', 'wireless_interface': ['Wi-Fi', 'Bluetooth'], 'broadband_generation': '4G', 'data_transmission': 'LTE', 'gps_type': 'GPS', 'bluetooth': 'Bluetooth', 'cell_band': ['UMTS band 1/2/4/5/8 (3G)', 'CDMA: BC0 BC1 BC10', 'GSM band 2/3/5/8 (2G)', 'LTE band 1/2/3/4/5/7/8/12/13/14/17/18/19/20/25/26/29/30/38/39/40/41/66/71 (4G)'], 'nfc': 'No', 'connectivity_highlights': 'Hotspot', 'lte_band': 'Band 1/2/3/4/5/7/8/12/13/14/17/18/19/20/25/26/29/30/38/39/40/41/66/71', 'sim_card_type': 'Nano SIM', 'product_type': 'Smartphone', 'buttons': ['Volume buttons', 'Power button', 'Vibrate/ringer switch'], 'hardware_sensors': ['Accelerometer', 'Proximity Sensor'], 'keyboard_support': 'QWERTY Keyboard', 'supported_os': 'Android', 'os_version': 'Android 10', 'security_highlights': 'Fingerprint Sensor', 'expandable_storage': 'Yes', 'supported_flash_memory_cards': 'microSDXC', 'dimensions': '167.24 x 76.54 x 9.36 mm', 'form_factor': 'Bar', 'durability': 'Water-repellent design', 'weight': '203 g', 'body_material': 'Plastic', 'design_highlights': 'Water-repellent design', 'keyboard': 'QWERTY Keyboard', 'headphone_jack': ['Yes', '3.5mm headset jack'], 'hearing_aid_compatibility': 'Yes (HAC)', 'speaker': 'Speakerphone', 'microphone': '2 Microphones', 'supported_media': 'Music Player', 'included_accessories': '10w Charger', 'gpu': 'Qualcomm ADRENO 610', 'number_of_cpu_cores': 'Octa Core', 'processor': ['Qualcomm Snapdragon 460', 'Octa Core'], 'cpu_clock_speed': '1.8 GHz', 'epeat_rating': 'A', 'top_use_cases': ['Video chats', 'Games', 'Movies'], 'typical_users': 'Students'}
+        sellers=[{'position': 1, 'merchant': 'Best Buy', 'link': 'https://www.bestbuy.com/product/tracfone-motorola-moto-g-play-2024-64gb-prepaid-blue/JXJCJWF5XC/sku/6589852?utm_source=feed', 'base_price_raw': '$29.99', 'base_price': 29.99, 'base_price_parsed': {'value': 29.99, 'currency': 'USD', 'raw': '29.99'}, 'tax_price_raw': '+tax', 'tax_price': 0, 'tax_price_parsed': {'value': 0, 'currency': 'USD', 'raw': '0'}, 'shipping_price_raw': '+ $5.49', 'shipping_price': 5.49, 'shipping_price_parsed': {'value': 5.49, 'currency': 'USD', 'raw': '5.49'}, 'total_price_raw': '$35.48', 'total_price': 35.48, 'total_price_parsed': {'value': 35.48, 'currency': 'USD', 'raw': '35.48'}}, {'position': 2, 'merchant': 'Walmart - Seller', 'link': 'https://www.walmart.com/ip/Verizon-Motorola-G-Play-32GB/752843265?wmlspartner=wlpa&selectedSellerId=101222135', 'base_price_raw': '$78.00', 'base_price': 78, 'base_price_parsed': {'value': 78, 'currency': 'USD', 'raw': '78.00'}, 'tax_price_raw': '+tax', 'tax_price': 0, 'tax_price_parsed': {'value': 0, 'currency': 'USD', 'raw': '0'}, 'shipping_price_raw': 'Free', 'shipping_price': 0, 'shipping_price_parsed': {'value': 0, 'currency': 'USD', 'raw': '0'}, 'total_price_raw': '$78.00', 'total_price': 78, 'total_price_parsed': {'value': 78, 'currency': 'USD', 'raw': '78.00'}}, {'position': 3, 'merchant': 'Target', 'link': 'https://www.target.com/p/tracfone-prepaid-motorola-g-play-64gb-cdma-lte-blue/-/A-92382739?TCID=OGS&AFID=google&CPNG=Electronics&adgroup=80-2&srsltid=AfmBOooruxwLzNaUYVqVVerJAJ155MWv2nY8Ws5yk4KQwUNN4oGJHt2vfJ8', 'base_price_raw': '$39.99', 'base_price': 39.99, 'base_price_parsed': {'value': 39.99, 'currency': 'USD', 'raw': '39.99'}, 'tax_price_raw': '+tax', 'tax_price': 0, 'tax_price_parsed': {'value': 0, 'currency': 'USD', 'raw': '0'}, 'shipping_price_raw': 'Free', 'shipping_price': 0, 'shipping_price_parsed': {'value': 0, 'currency': 'USD', 'raw': '0'}, 'total_price_raw': '$39.99', 'total_price': 39.99, 'total_price_parsed': {'value': 39.99, 'currency': 'USD', 'raw': '39.99'}}]
+        rank=7
+        merchant=Best Buy
+        price=29.99
+        reviews=1400
+        rating=3.9"""
+
+        # Simulate real-world product_information construction
+        product_information = product_data
+
+        prod_data = LLMProductRequestData(
+            super_category="smartphones",
+            product_title="Motorola Moto G Play",
+            product_information=product_information
+        )
+
+        result = extractor.get_all_characteristics(prod_data)
+
+        print(f"\nExtracted characteristics for electronics (SDE-84): {result}")
+
+        # Verify structure
+        self.assertIsInstance(result, dict)
+        self.assertIn("brand", result)
+        self.assertIn("color", result)
+
+        # Should extract Motorola as brand
+        brands = [b.lower() for b in result.get("brand", [])]
+        self.assertTrue(any("motorola" in b for b in brands), f"Expected Motorola in brands, got: {brands}")
+
+        # Product is described as blue in the sellers link
+        # May or may not extract color depending on LLM interpretation
+        # Just verify the result is a list
+        colors = result.get("color", [])
+        self.assertIsInstance(colors, list)
+
     def test_live_extraction_multiple_colors(self):
         """Test extraction with multiple colors in product"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -668,7 +1912,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Test extraction with electronics category"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -700,7 +1944,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Test extraction with minimal product information"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -722,7 +1966,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Test extraction with ambiguous product information"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -746,7 +1990,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """Test real-world usage pattern simulating Spark Row structure"""
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -806,7 +2050,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -872,7 +2116,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -927,7 +2171,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -979,7 +2223,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -1018,7 +2262,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -1074,7 +2318,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 
@@ -1109,7 +2353,7 @@ class TestLLMCharacteristicsExtractorFunctional(unittest.TestCase):
         """
         extractor = LLMCharacteristicsExtractor(
             llm_ex_config=self.llm_ex_config,
-            llm_characteristics_configs=[self.category_def],
+            llm_characteristics_configs=self.category_def,
             gen_ai_api_config=self.gen_ai_config
         )
 

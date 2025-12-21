@@ -161,6 +161,10 @@ class ETLUtilities:
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         return db_manager.pull_data_from_table(table_name, columns, filters)
 
+    def get_table_columns(self, table_name: str, use_dest_db: bool = False):
+        db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
+        return db_manager.get_table_header(table_name)
+
     def remove_tables_from_db(self, table_names: list[str], use_dest_db: bool = False):
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
         for table in table_names:

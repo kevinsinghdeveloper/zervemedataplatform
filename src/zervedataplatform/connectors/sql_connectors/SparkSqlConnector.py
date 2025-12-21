@@ -50,7 +50,7 @@ class SparkSQLConnector(SqlConnector):
     def create_table_using_def(self, table_name: str, table_def: dict):
         """Creates a table using the provided column definitions."""
         columns = ', '.join([f"{col} {dtype}" for col, dtype in table_def.items()])
-        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns});"
+        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns})"
         self.exec_sql(query)
 
     def create_table_using_data_class(self, data_class: Type, table_name: str = None):
@@ -61,7 +61,7 @@ class SparkSQLConnector(SqlConnector):
         # Infer schema from data class
         columns = ', '.join([f"{field.name} {self._get_sql_type(field.type)}" for field in fields(data_class)])
 
-        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns});"
+        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns})"
         self.exec_sql(query)
 
     def update_table_structure_using_data_class(self, data_class: Type, table_name: str = None):
@@ -76,7 +76,7 @@ class SparkSQLConnector(SqlConnector):
 
         for column in columns_to_add:
             col_type = self._get_sql_type(getattr(data_class, column))
-            query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN {column} {col_type};"
+            query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN {column} {col_type}"
             self.exec_sql(query)
 
     def bulk_insert_data_into_table(self, table_name: str, df: DataFrame):
@@ -128,12 +128,12 @@ class SparkSQLConnector(SqlConnector):
 
     def get_table_n_rows_to_df(self, table_name: str, nrows: int) -> DataFrame:
         """Fetches a limited number of rows from a table."""
-        query = f"SELECT * FROM {self.schema}.{table_name} LIMIT {nrows};"
+        query = f"SELECT * FROM {self.schema}.{table_name} LIMIT {nrows}"
         return self.run_sql_and_get_df(query)
 
     def drop_table(self, table_name: str):
         """Drops a table if it exists."""
-        query = f"DROP TABLE IF EXISTS {self.schema}.{table_name};"
+        query = f"DROP TABLE IF EXISTS {self.schema}.{table_name}"
         self.exec_sql(query)
 
     def list_tables_with_prefix(self, prefix: str) -> List[str]:
@@ -167,38 +167,38 @@ class SparkSQLConnector(SqlConnector):
 
     def get_table_header(self, table_name: str) -> List[str]:
         """Retrieves column names from a table."""
-        query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';"
+        query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
         df = self.run_sql_and_get_df(query)
         return df.select("column_name").rdd.flatMap(lambda x: x).collect()
 
     def check_if_table_exists(self, table_name: str) -> bool:
         """Checks if a table exists."""
-        query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}');"
+        query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}')"
         df = self.run_sql_and_get_df(query)
         return df.collect()[0][0]
 
     def get_table_row_count(self, table_name: str, warnings: bool = False) -> int:
         """Gets the row count of a table."""
-        query = f"SELECT COUNT(*) FROM {self.schema}.{table_name};"
+        query = f"SELECT COUNT(*) FROM {self.schema}.{table_name}"
         df = self.run_sql_and_get_df(query)
         return df.collect()[0][0]
 
     def get_distinct_values_from_single_col(self, column_name: str, table_name: str) -> List[Any]:
         """Gets distinct values from a column."""
-        query = f"SELECT DISTINCT {column_name} FROM {self.schema}.{table_name};"
+        query = f"SELECT DISTINCT {column_name} FROM {self.schema}.{table_name}"
         df = self.run_sql_and_get_df(query)
         return df.select(column_name).rdd.flatMap(lambda x: x).collect()
 
     def clear_table(self, table_name: str):
         """Deletes all rows from a table."""
-        query = f"DELETE FROM {self.schema}.{table_name};"
+        query = f"DELETE FROM {self.schema}.{table_name}"
         self.exec_sql(query)
 
     def insert_row_to_table(self, table_name: str, row: Dict[str, Any]) -> int:
         """Inserts a row into a table."""
         columns = ', '.join(row.keys())
         values = ', '.join([f"'{v}'" if isinstance(v, str) else str(v) for v in row.values()])
-        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING id;"
+        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING id"
         df = self.run_sql_and_get_df(query)
         return df.collect()[0][0]
 
@@ -219,7 +219,7 @@ class SparkSQLConnector(SqlConnector):
     def create_table_ctas(self, tableName: str, innerSql: str, sortkey: str = None, distkey: str = None,
                           include_print: bool = True):
         """Creates a table using CREATE TABLE AS SELECT (CTAS)."""
-        query = f"CREATE TABLE {self.schema}.{tableName} AS {innerSql};"
+        query = f"CREATE TABLE {self.schema}.{tableName} AS {innerSql}"
         if include_print:
             print(f"Creating table {tableName} with CTAS")
         self.exec_sql(query)
@@ -227,19 +227,19 @@ class SparkSQLConnector(SqlConnector):
     def append_to_table_insert_select(self, tableName: str, innerSql: str, columnStr: str = None):
         """Appends data to a table using INSERT INTO ... SELECT."""
         if columnStr:
-            query = f"INSERT INTO {self.schema}.{tableName} ({columnStr}) {innerSql};"
+            query = f"INSERT INTO {self.schema}.{tableName} ({columnStr}) {innerSql}"
         else:
-            query = f"INSERT INTO {self.schema}.{tableName} {innerSql};"
+            query = f"INSERT INTO {self.schema}.{tableName} {innerSql}"
         self.exec_sql(query)
 
     def clone_table(self, tableName: str, newTableName: str):
         """Clones a table structure and data."""
-        query = f"CREATE TABLE {self.schema}.{newTableName} AS SELECT * FROM {self.schema}.{tableName};"
+        query = f"CREATE TABLE {self.schema}.{newTableName} AS SELECT * FROM {self.schema}.{tableName}"
         self.exec_sql(query)
 
     def rename_table(self, table_name, new_table_name):
         """Renames a table."""
-        query = f"ALTER TABLE {self.schema}.{table_name} RENAME TO {new_table_name};"
+        query = f"ALTER TABLE {self.schema}.{table_name} RENAME TO {new_table_name}"
         self.exec_sql(query)
 
     def test_table_by_row_count(self, table_name):
@@ -250,7 +250,7 @@ class SparkSQLConnector(SqlConnector):
     def check_db_status(self) -> bool:
         """Checks if the database connection is working."""
         try:
-            query = "SELECT 1 AS status;"
+            query = "SELECT 1 AS status"
             df = self.run_sql_and_get_df(query)
             result = df.collect()[0][0]
             return result == 1
@@ -276,7 +276,7 @@ class SparkSQLConnector(SqlConnector):
         INSERT INTO {self.schema}.{table_name} ({columns})
         VALUES ({values})
         ON CONFLICT ({identifier_column})
-        DO UPDATE SET {update_set};
+        DO UPDATE SET {update_set}
         """
 
         try:
@@ -307,7 +307,7 @@ class SparkSQLConnector(SqlConnector):
         query = f"""
         UPDATE {self.schema}.{table_name}
         SET {set_clause}
-        WHERE {where_clause};
+        WHERE {where_clause}
         """
 
         try:
@@ -327,7 +327,7 @@ class SparkSQLConnector(SqlConnector):
         columns = ', '.join(field_dict.keys())
         values = ', '.join([f"'{v}'" if isinstance(v, str) else str(v) for v in field_dict.values()])
 
-        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING {pk_key};"
+        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING {pk_key}"
 
         try:
             df = self.run_sql_and_get_df(query)

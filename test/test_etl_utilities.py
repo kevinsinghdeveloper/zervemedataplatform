@@ -25,9 +25,16 @@ class TestETLUtilities(unittest.TestCase):
             }
         }
         self.mock_pipeline_config.db_config = {
+            'database_type': 'postgres',
             'host': 'localhost',
             'port': 5432,
             'database': 'test_db'
+        }
+        self.mock_pipeline_config.dest_db_config = {
+            'database_type': 'postgres',
+            'host': 'dest-host',
+            'port': 5432,
+            'database': 'dest_db'
         }
 
     @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
@@ -46,8 +53,10 @@ class TestETLUtilities(unittest.TestCase):
         # Verify cloud connector was initialized
         mock_cloud_connector.assert_called_once_with(self.mock_pipeline_config.cloud_config)
 
-        # Verify SQL connector was initialized
-        mock_sql_connector.assert_called_once_with(self.mock_pipeline_config.db_config)
+        # Verify SQL connectors were initialized for both source and dest
+        self.assertEqual(mock_sql_connector.call_count, 2)
+        mock_sql_connector.assert_any_call(self.mock_pipeline_config.db_config)
+        mock_sql_connector.assert_any_call(self.mock_pipeline_config.dest_db_config)
 
     @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
     @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
@@ -414,6 +423,1313 @@ class TestETLUtilities(unittest.TestCase):
         self.assertIsInstance(result, DataFrame)
         self.assertEqual(result.count(), 3)
         self.assertEqual(len(result.columns), 3)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_drop_db_tables_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test drop_db_tables with use_dest_db=True drops from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        # Create two different mock SQL connectors
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        tables = ['dest_table1', 'dest_table2']
+        etl_util.drop_db_tables(tables, use_dest_db=True)
+
+        # Verify dest_db_manager was used, not source
+        self.assertEqual(mock_dest_sql.drop_table.call_count, 2)
+        self.assertEqual(mock_source_sql.drop_table.call_count, 0)
+        mock_dest_sql.drop_table.assert_has_calls([
+            call('dest_table1'),
+            call('dest_table2')
+        ])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_drop_db_table_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test drop_db_table with use_dest_db=True drops from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        etl_util.drop_db_table('dest_table', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.drop_table.assert_called_once_with('dest_table')
+        mock_source_sql.drop_table.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_find_all_tables_with_prefix_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test find_all_tables_with_prefix with use_dest_db=True queries destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_dest_sql.list_tables_with_prefix.return_value = ['dest_orders_2024', 'dest_orders_2025']
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.find_all_tables_with_prefix('dest_orders', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.list_tables_with_prefix.assert_called_once_with('dest_orders')
+        mock_source_sql.list_tables_with_prefix.assert_not_called()
+        self.assertEqual(result, ['dest_orders_2024', 'dest_orders_2025'])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_write_df_to_table_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test write_df_to_table with use_dest_db=True writes to destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        mock_df = Mock(spec=DataFrame)
+        etl_util.write_df_to_table(mock_df, 'dest_table', mode='append', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(
+            df=mock_df,
+            table_name='dest_table',
+            mode='append'
+        )
+        mock_source_sql.write_dataframe_to_table.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_remove_tables_from_db_with_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test remove_tables_from_db with use_dest_db=True removes from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        tables = ['dest_temp1', 'dest_temp2', 'dest_temp3']
+        etl_util.remove_tables_from_db(tables, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        self.assertEqual(mock_dest_sql.drop_table.call_count, 3)
+        self.assertEqual(mock_source_sql.drop_table.call_count, 0)
+        mock_dest_sql.drop_table.assert_has_calls([
+            call('dest_temp1'),
+            call('dest_temp2'),
+            call('dest_temp3')
+        ])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_data_movement_from_source_to_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test complete data movement scenario: read from source, write to destination"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        # Mock cloud storage with DataFrame
+        mock_cloud = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_cloud.get_dataframe_from_cloud.return_value = mock_df
+        mock_cloud_connector.return_value = mock_cloud
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Simulate data movement:
+        # 1. Read from cloud
+        df = etl_util.get_df_from_cloud('s3://test-bucket/processed_data.parquet')
+
+        # 2. Write to source DB for staging
+        etl_util.write_df_to_table(df, 'staging_table', mode='overwrite', use_dest_db=False)
+
+        # 3. Write to destination DB for final storage
+        etl_util.write_df_to_table(df, 'production_table', mode='overwrite', use_dest_db=True)
+
+        # Verify source DB was written to
+        mock_source_sql.write_dataframe_to_table.assert_called_once_with(
+            df=mock_df,
+            table_name='staging_table',
+            mode='overwrite'
+        )
+
+        # Verify destination DB was written to
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(
+            df=mock_df,
+            table_name='production_table',
+            mode='overwrite'
+        )
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_get_all_db_tables_from_source(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test get_all_db_tables returns tables from source database by default"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_source_sql.list_tables.return_value = ['source_table1', 'source_table2', 'source_table3']
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.get_all_db_tables()
+
+        # Verify source_db_manager was used
+        mock_source_sql.list_tables.assert_called_once()
+        mock_dest_sql.list_tables.assert_not_called()
+        self.assertEqual(result, ['source_table1', 'source_table2', 'source_table3'])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_get_all_db_tables_from_dest(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test get_all_db_tables with use_dest_db=True returns tables from destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_dest_sql.list_tables.return_value = ['dest_table1', 'dest_table2', 'dest_analytics']
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.get_all_db_tables(use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.list_tables.assert_called_once()
+        mock_source_sql.list_tables.assert_not_called()
+        self.assertEqual(result, ['dest_table1', 'dest_table2', 'dest_analytics'])
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_read_db_table_to_df_from_source(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test read_db_table_to_df reads from source database by default"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.read_db_table_to_df('test_table')
+
+        # Verify source_db_manager was used
+        mock_source_sql.get_table.assert_called_once_with('test_table', None)
+        mock_dest_sql.get_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_read_db_table_to_df_from_source_with_limit(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test read_db_table_to_df reads from source database with limit"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.read_db_table_to_df('test_table', limit_n=100)
+
+        # Verify source_db_manager was used with limit
+        mock_source_sql.get_table.assert_called_once_with('test_table', 100)
+        mock_dest_sql.get_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_read_db_table_to_df_from_dest(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test read_db_table_to_df reads from destination database when use_dest_db=True"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.read_db_table_to_df('dest_table', use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.get_table.assert_called_once_with('dest_table', None)
+        mock_source_sql.get_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_read_db_table_to_df_from_dest_with_limit(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test read_db_table_to_df reads from destination database with limit"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        result = etl_util.read_db_table_to_df('dest_table', limit_n=50, use_dest_db=True)
+
+        # Verify dest_db_manager was used with limit
+        mock_dest_sql.get_table.assert_called_once_with('dest_table', 50)
+        mock_source_sql.get_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_source(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from source database by default"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['id', 'name', 'email']
+        result = etl_util.pull_table_data_to_df('users', columns)
+
+        # Verify source_db_manager was used
+        mock_source_sql.pull_data_from_table.assert_called_once_with('users', columns, None)
+        mock_dest_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_source_with_filters(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from source database with filters"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['id', 'name', 'email']
+        filters = {'status': 'active', 'role': 'admin'}
+        result = etl_util.pull_table_data_to_df('users', columns, filters)
+
+        # Verify source_db_manager was used with filters
+        mock_source_sql.pull_data_from_table.assert_called_once_with('users', columns, filters)
+        mock_dest_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_dest(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from destination database when use_dest_db=True"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['product_id', 'product_name', 'price']
+        result = etl_util.pull_table_data_to_df('products', columns, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.pull_data_from_table.assert_called_once_with('products', columns, None)
+        mock_source_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_pull_table_data_to_df_from_dest_with_filters(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test pull_table_data_to_df pulls from destination database with filters"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.pull_data_from_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        columns = ['order_id', 'customer_id', 'total']
+        filters = {'status': 'completed', 'payment_method': 'credit_card'}
+        result = etl_util.pull_table_data_to_df('orders', columns, filters, use_dest_db=True)
+
+        # Verify dest_db_manager was used with filters
+        mock_dest_sql.pull_data_from_table.assert_called_once_with('orders', columns, filters)
+        mock_source_sql.pull_data_from_table.assert_not_called()
+        self.assertEqual(result, mock_df)
+
+    def test_combine_columns_to_text_basic(self):
+        """Test combine_columns_to_text with basic settings"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        # Create test DataFrame
+        data = [
+            {"title": "Product A", "description": "Great product", "brand": "Nike"},
+            {"title": "Product B", "description": "Amazing item", "brand": "Adidas"},
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            output_column="combined_text"
+        )
+
+        # Check that combined_text column exists
+        self.assertIn("combined_text", result.columns)
+
+        # Check values
+        rows = result.collect()
+        self.assertIn("Product A", rows[0].combined_text)
+        self.assertIn("Great product", rows[0].combined_text)
+        self.assertIn("Nike", rows[0].combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_with_labels(self):
+        """Test combine_columns_to_text with add_labels=True"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"product_title": "Shoes", "brand": "Nike", "color": "Red"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["product_title", "brand", "color"],
+            add_labels=True
+        )
+
+        rows = result.collect()
+        combined_text = rows[0].combined_text
+
+        # Check that labels are added
+        self.assertIn("Product Title:", combined_text)
+        self.assertIn("Brand:", combined_text)
+        self.assertIn("Color:", combined_text)
+        self.assertIn("Shoes", combined_text)
+        self.assertIn("Nike", combined_text)
+        self.assertIn("Red", combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_with_nulls_filtered(self):
+        """Test combine_columns_to_text filters out null values"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"title": "Product A", "description": None, "brand": "Nike"},
+            {"title": "Product B", "description": "Good", "brand": None},
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            filter_empty=True
+        )
+
+        rows = result.collect()
+
+        # First row should have title and brand, but not description
+        self.assertIn("Product A", rows[0].combined_text)
+        self.assertIn("Nike", rows[0].combined_text)
+        # Should not have empty string markers
+        self.assertNotIn("..", rows[0].combined_text.replace(". . ", ".."))
+
+        # Second row should have title and description, but not brand
+        self.assertIn("Product B", rows[1].combined_text)
+        self.assertIn("Good", rows[1].combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_without_filtering(self):
+        """Test combine_columns_to_text with filter_empty=False"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        from pyspark.sql.types import StructType, StructField, StringType
+        schema = StructType([
+            StructField("title", StringType(), True),
+            StructField("description", StringType(), True),
+            StructField("brand", StringType(), True)
+        ])
+
+        data = [
+            {"title": "Product A", "description": None, "brand": "Nike"}
+        ]
+        df = spark.createDataFrame(data, schema=schema)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            filter_empty=False
+        )
+
+        rows = result.collect()
+        # With filter_empty=False, empty values are included
+        # This should have multiple separators next to each other
+        self.assertIn("Product A", rows[0].combined_text)
+        self.assertIn("Nike", rows[0].combined_text)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_custom_separator(self):
+        """Test combine_columns_to_text with custom separator"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"col1": "A", "col2": "B", "col3": "C"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["col1", "col2", "col3"],
+            separator=" | "
+        )
+
+        rows = result.collect()
+        self.assertEqual(rows[0].combined_text, "A | B | C")
+
+        spark.stop()
+
+    def test_combine_columns_to_text_custom_output_column(self):
+        """Test combine_columns_to_text with custom output column name"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"col1": "A", "col2": "B"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["col1", "col2"],
+            output_column="custom_column"
+        )
+
+        # Check that custom column exists
+        self.assertIn("custom_column", result.columns)
+        self.assertNotIn("combined_text", result.columns)
+
+        rows = result.collect()
+        self.assertIn("A", rows[0].custom_column)
+        self.assertIn("B", rows[0].custom_column)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_preserves_other_columns(self):
+        """Test that combine_columns_to_text preserves other columns"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"id": 1, "title": "Product A", "description": "Great", "price": 100.0}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description"]
+        )
+
+        # All original columns should still exist
+        self.assertIn("id", result.columns)
+        self.assertIn("title", result.columns)
+        self.assertIn("description", result.columns)
+        self.assertIn("price", result.columns)
+        self.assertIn("combined_text", result.columns)
+
+        rows = result.collect()
+        self.assertEqual(rows[0].id, 1)
+        self.assertEqual(rows[0].price, 100.0)
+
+        spark.stop()
+
+    def test_combine_columns_to_text_with_all_empty_values(self):
+        """Test combine_columns_to_text when all values are empty"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        from pyspark.sql.types import StructType, StructField, StringType
+        schema = StructType([
+            StructField("title", StringType(), True),
+            StructField("description", StringType(), True),
+            StructField("brand", StringType(), True)
+        ])
+
+        data = [
+            {"title": None, "description": None, "brand": None}
+        ]
+        df = spark.createDataFrame(data, schema=schema)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "description", "brand"],
+            filter_empty=True
+        )
+
+        rows = result.collect()
+        # When all values are empty, result should be empty string
+        self.assertEqual(rows[0].combined_text, "")
+
+        spark.stop()
+
+    def test_combine_columns_to_text_multiple_rows(self):
+        """Test combine_columns_to_text with multiple rows"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+
+        data = [
+            {"title": "Product 1", "brand": "Nike"},
+            {"title": "Product 2", "brand": "Adidas"},
+            {"title": "Product 3", "brand": "Puma"}
+        ]
+        df = spark.createDataFrame(data)
+
+        result = ETLUtilities.combine_columns_to_text(
+            df,
+            columns=["title", "brand"],
+            separator=" - "
+        )
+
+        rows = result.collect()
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0].combined_text, "Product 1 - Nike")
+        self.assertEqual(rows[1].combined_text, "Product 2 - Adidas")
+        self.assertEqual(rows[2].combined_text, "Product 3 - Puma")
+
+        spark.stop()
+
+    # Tests for cleanup functionality
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cleanup_stops_spark_session(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cleanup method stops Spark session"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Call cleanup
+        etl_util.cleanup()
+
+        # Verify Spark session was stopped
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cleanup_idempotent(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cleanup can be called multiple times safely"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Call cleanup multiple times
+        etl_util.cleanup()
+        etl_util.cleanup()
+        etl_util.cleanup()
+
+        # Verify Spark session was stopped only once
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cleanup_handles_exception(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cleanup handles exceptions gracefully"""
+        mock_spark = MagicMock()
+        mock_spark.stop.side_effect = Exception("Spark stop failed")
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Cleanup should not raise exception
+        try:
+            etl_util.cleanup()
+        except Exception:
+            self.fail("cleanup() raised Exception unexpectedly")
+
+        # Verify stop was attempted
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_context_manager_cleans_up_on_exit(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test context manager cleanup on exit"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        with ETLUtilities(self.mock_pipeline_config) as etl_util:
+            # Spark should not be stopped yet
+            mock_spark.stop.assert_not_called()
+
+        # After exiting context, Spark should be stopped
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_context_manager_cleans_up_on_exception(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test context manager cleanup when exception occurs"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        try:
+            with ETLUtilities(self.mock_pipeline_config) as etl_util:
+                # Simulate an exception during processing
+                raise ValueError("Test exception")
+        except ValueError:
+            pass
+
+        # Spark should still be stopped even though exception occurred
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_context_manager_returns_self(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test context manager __enter__ returns self"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Test __enter__ returns self
+        self.assertIs(etl_util.__enter__(), etl_util)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_destructor_calls_cleanup(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test destructor calls cleanup"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Explicitly call destructor
+        etl_util.__del__()
+
+        # Verify Spark session was stopped
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_destructor_silences_exceptions(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test destructor silences exceptions"""
+        mock_spark = MagicMock()
+        mock_spark.stop.side_effect = Exception("Spark stop failed")
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Destructor should not raise exception
+        try:
+            etl_util.__del__()
+        except Exception:
+            self.fail("__del__() raised Exception unexpectedly")
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_explicit_cleanup_before_context_exit(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test calling cleanup explicitly before context manager exit"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        with ETLUtilities(self.mock_pipeline_config) as etl_util:
+            # Explicitly call cleanup
+            etl_util.cleanup()
+            # Spark should be stopped
+            mock_spark.stop.assert_called_once()
+
+        # After exiting context, stop should still only be called once
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_operations_work_with_context_manager(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test that ETL operations work correctly within context manager"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_cloud = Mock()
+        mock_cloud.list_files.return_value = ['file1', 'file2']
+        mock_cloud_connector.return_value = mock_cloud
+
+        with ETLUtilities(self.mock_pipeline_config) as etl_util:
+            # Perform operations
+            files = etl_util.get_all_files_from_folder('s3://test-bucket/path')
+            self.assertEqual(files, ['file1', 'file2'])
+
+            # Verify cloud connector was called
+            mock_cloud.list_files.assert_called_once_with('s3://test-bucket/path', 'folders')
+
+        # Verify cleanup happened
+        mock_spark.stop.assert_called_once()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cast_db_col_on_source_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cast_db_col casts column type on source database by default"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create a vector type for casting
+        vector_type = PostgresDataType.vector(1536)
+        etl_util.cast_db_col('products', 'embedding', vector_type)
+
+        # Verify source_db_manager was used
+        mock_source_sql.cast_column.assert_called_once_with('products', 'embedding', vector_type)
+        mock_dest_sql.cast_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_cast_db_col_on_dest_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test cast_db_col casts column type on destination database when use_dest_db=True"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create a JSONB type for casting
+        jsonb_type = PostgresDataType.JSONB
+        etl_util.cast_db_col('analytics_data', 'metadata', jsonb_type, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.cast_column.assert_called_once_with('analytics_data', 'metadata', jsonb_type)
+        mock_source_sql.cast_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_ivfflat_cosine(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat cosine index on source database by default"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat cosine index
+        index = PostgresDataType.ivfflat_cosine(table='products', column='embedding', lists=100)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_dest_db_ivfflat_cosine(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat cosine index on destination database when use_dest_db=True"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat cosine index for destination DB
+        index = PostgresDataType.ivfflat_cosine(table='products', column='embedding', lists=150)
+        etl_util.create_index_col(index, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.create_index_column.assert_called_once_with(index)
+        mock_source_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_ivfflat_l2(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat L2 index on source database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat L2 index
+        index = PostgresDataType.ivfflat_l2(table='images', column='features_vector', lists=200)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_dest_db_hnsw_cosine(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates HNSW cosine index on destination database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an HNSW cosine index for destination DB
+        index = PostgresDataType.hnsw_cosine(table='documents', column='text_embedding', m=16, ef_construction=64)
+        etl_util.create_index_col(index, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.create_index_column.assert_called_once_with(index)
+        mock_source_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_hnsw_l2(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates HNSW L2 index on source database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an HNSW L2 index
+        index = PostgresDataType.hnsw_l2(table='videos', column='feature_embedding', m=24, ef_construction=128)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_dest_db_ivfflat_ip(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates IVFFlat inner product index on destination database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an IVFFlat inner product index for destination DB
+        index = PostgresDataType.ivfflat_ip(table='recommendations', column='user_embedding', lists=75)
+        etl_util.create_index_col(index, use_dest_db=True)
+
+        # Verify dest_db_manager was used
+        mock_dest_sql.create_index_column.assert_called_once_with(index)
+        mock_source_sql.create_index_column.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_create_index_col_on_source_db_hnsw_ip(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test create_index_col creates HNSW inner product index on source database"""
+        from zervedataplatform.connectors.sql_connectors.PostgresSqlConnector import PostgresDataType
+
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Create an HNSW inner product index
+        index = PostgresDataType.hnsw_ip(table='search_results', column='query_embedding', m=32, ef_construction=256)
+        etl_util.create_index_col(index)
+
+        # Verify source_db_manager was used
+        mock_source_sql.create_index_column.assert_called_once_with(index)
+        mock_dest_sql.create_index_column.assert_not_called()
+
+    # Tests for union_spark_df method
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_basic(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df with basic DataFrames"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # Create two DataFrames with same schema
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A"},
+            {"product_id": 2, "price": 20.0, "name": "Product B"}
+        ])
+
+        df2 = spark.createDataFrame([
+            {"product_id": 3, "price": 30.0, "name": "Product C"},
+            {"product_id": 4, "price": 40.0, "name": "Product D"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 4)
+        self.assertEqual(len(result.columns), 3)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_with_missing_columns(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df handles DataFrames with missing columns"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df1 has all columns
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A"}
+        ])
+
+        # df2 is missing 'name' column
+        df2 = spark.createDataFrame([
+            {"product_id": 2, "price": 20.0}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 2)
+        self.assertEqual(len(result.columns), 3)
+
+        # Check that missing column was filled with null
+        rows = result.collect()
+        self.assertIsNone(rows[1]["name"])
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_with_type_casting(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df casts columns to correct types"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df1 has price as int
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10, "name": "Product A"}
+        ])
+
+        # df2 has price as float
+        df2 = spark.createDataFrame([
+            {"product_id": 2, "price": 20.5, "name": "Product B"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 2)
+
+        # Check data types
+        price_type = [field.dataType.simpleString() for field in result.schema.fields if field.name == "price"][0]
+        self.assertIn("float", price_type.lower())
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_with_extra_columns(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df removes extra columns not in schema_map"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df1 has an extra column 'description'
+        df1 = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A", "description": "Extra"}
+        ])
+
+        df2 = spark.createDataFrame([
+            {"product_id": 2, "price": 20.0, "name": "Product B"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify result only has columns from schema_map
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.columns), 3)
+        self.assertNotIn("description", result.columns)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_multiple_dataframes(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df with more than 2 DataFrames"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        df1 = spark.createDataFrame([{"id": 1, "value": "A"}])
+        df2 = spark.createDataFrame([{"id": 2, "value": "B"}])
+        df3 = spark.createDataFrame([{"id": 3, "value": "C"}])
+        df4 = spark.createDataFrame([{"id": 4, "value": "D"}])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "id": "int",
+            "value": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2, df3, df4], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 4)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_empty_list(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df returns None for empty DataFrame list"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float"
+        }
+
+        result = etl_util.union_spark_df([], schema_map)
+
+        # Verify result is None
+        self.assertIsNone(result)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_single_dataframe(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df with a single DataFrame"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        df = spark.createDataFrame([
+            {"product_id": 1, "price": 10.0, "name": "Product A"}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df], schema_map)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.count(), 1)
+        self.assertEqual(len(result.columns), 3)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_union_spark_df_preserves_column_order(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test union_spark_df preserves column order from schema_map"""
+        # Set up SparkSession mock
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        spark = SparkSession.builder.appName("test").getOrCreate()
+
+        # df with columns in different order
+        df1 = spark.createDataFrame([
+            {"name": "Product A", "product_id": 1, "price": 10.0}
+        ])
+
+        df2 = spark.createDataFrame([
+            {"price": 20.0, "name": "Product B", "product_id": 2}
+        ])
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        schema_map = {
+            "product_id": "int",
+            "price": "float",
+            "name": "string"
+        }
+
+        result = etl_util.union_spark_df([df1, df2], schema_map)
+
+        # Verify column order matches schema_map
+        self.assertEqual(result.columns, list(schema_map.keys()))
 
         spark.stop()
 

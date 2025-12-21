@@ -1,0 +1,186 @@
+Metadata-Version: 2.4
+Name: zervedataplatform
+Version: 0.2.3
+Summary: E-commerce data extraction and processing platform with AI-powered enrichment
+Author-email: Zerveme <noreply@zerveme.com>
+Project-URL: Homepage, https://github.com/zerveme/zervemedata
+Project-URL: Repository, https://github.com/zerveme/zervemedata
+Keywords: etl,data-pipeline,web-scraping,ai,e-commerce,spark,llm
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: selenium-driverless>=1.9.4
+Requires-Dist: selenium>=4.0.0
+Requires-Dist: requests>=2.28.0
+Requires-Dist: pandas>=2.3.3
+Requires-Dist: numpy>=1.24.4
+Requires-Dist: pyspark==3.5.2
+Requires-Dist: pyarrow>=4.0.0
+Requires-Dist: boto3>=1.26.0
+Requires-Dist: botocore>=1.29.0
+Requires-Dist: google-cloud-vision>=3.0.0
+Requires-Dist: google-generativeai>=0.3.0
+Requires-Dist: psycopg2-binary>=2.9.0
+Requires-Dist: SQLAlchemy<2.0.0,>=1.4.0
+Requires-Dist: openai>=1.0.0
+Requires-Dist: sentence-transformers>=2.2.0
+Requires-Dist: langchain>=0.1.0
+Requires-Dist: langchain-community>=0.0.20
+Requires-Dist: langchain-openai>=0.0.5
+Requires-Dist: langchain-huggingface>=0.0.1
+Requires-Dist: langchain-core>=0.1.0
+Requires-Dist: opencv-python>=4.7.0
+Requires-Dist: setuptools>=65.5.1
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: flake8>=6.0.0; extra == "dev"
+Requires-Dist: mypy>=1.0.0; extra == "dev"
+
+# Zerve Data Platform
+
+An enterprise-grade ETL and data processing platform for automated e-commerce data extraction, AI-powered enrichment, and pipeline orchestration.
+
+## Features
+
+- **Multi-stage Pipeline Framework** - Orchestrate complex ETL workflows with checkpointing and progress tracking
+- **Web Scraping Automation** - Selenium-based browser automation for e-commerce sites
+- **AI-Powered Data Enrichment** - Multiple LLM provider support (OpenAI, Google Gemini, Ollama, HuggingFace)
+- **Cloud Integration** - AWS S3 and Spark data lake support
+- **Database Connectors** - PostgreSQL and Spark SQL with auto-schema generation
+- **Distributed Processing** - Apache Spark for big data ETL workflows
+
+## Installation
+
+### Development Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/zerveme/zervemedata.git
+cd zervedataplatform
+
+# Install in editable mode with development dependencies
+pip install -e ".[dev]"
+```
+
+### Production Installation
+
+```bash
+pip install zervedataplatform
+```
+
+## Quick Start
+
+### Import the package
+
+```python
+from pipeline import DataPipeline, DataConnectorBase
+from connectors.ai import GenAIManager
+from connectors.sql_connectors import PostgresSqlConnector
+from connectors.cloud_storage_connectors import S3CloudConnector
+from utils import Utility
+
+# Configure your pipeline
+config = Utility.read_in_json_file("config.json")
+
+# Create AI connector
+ai_manager = GenAIManager(config["ai_config"])
+
+# Create database connector
+db = PostgresSqlConnector(config["db_config"])
+
+# Create and run pipeline
+pipeline = DataPipeline()
+# ... add your jobs
+pipeline.run_data_pipeline()
+```
+
+## Architecture
+
+```
+zervedataplatform/
+├── abstractions/          # Abstract base classes and interfaces
+├── connectors/           # Database, cloud, and AI connectors
+│   ├── ai/              # OpenAI, Gemini, LangChain, Google Vision
+│   ├── sql_connectors/  # PostgreSQL, Spark SQL
+│   └── cloud_storage_connectors/  # S3, Spark Cloud
+├── pipeline/            # Pipeline orchestration framework
+├── model_transforms/    # Database models and schemas
+├── utils/              # Utilities and helpers
+└── test/               # Unit tests
+```
+
+## Key Components
+
+### Pipeline Framework
+- **5-Stage Execution**: `initialize → pre_validate → read → main → output`
+- **Activity Logging**: JSON-based progress tracking with hierarchical structure
+- **Checkpoint/Resume**: Resume long-running pipelines from failure points
+
+### AI Connectors
+- **Multi-Provider Support**: OpenAI, Google Gemini, Ollama (local), HuggingFace
+- **Unified Interface**: LangChain abstraction layer
+- **Auto-Detection**: Configuration-driven provider selection
+
+### Data Processing
+- **Spark Integration**: Distributed processing for large datasets
+- **Pandas/Spark**: Seamless DataFrame conversions
+- **ETL Utilities**: High-level operations for common ETL tasks
+
+## Configuration
+
+Create configuration files in `default_configs/`:
+
+```json
+// configuration.json
+{
+  "db_config": "default_configs/db_config.json",
+  "run_config": "default_configs/run.json",
+  "ai_api_config": "default_configs/google_api_config.json",
+  "web_config": "default_configs/web_config.json",
+  "cloud_config": "default_configs/s3_config.json"
+}
+```
+
+See the `default_configs/` directory for configuration examples.
+
+## Requirements
+
+- Python 3.11+
+- Apache Spark 3.5.2
+- PostgreSQL (optional, for SQL connector)
+- AWS credentials (optional, for S3 connector)
+- Google Cloud credentials (optional, for Vision API)
+
+## Development
+
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run tests with coverage
+pytest --cov=. --cov-report=html
+
+# Format code
+black .
+
+# Lint code
+flake8
+```
+
+## License
+
+Proprietary - © 2025 Zerveme
+
+## Support
+
+For issues and questions, please contact: support@zerveme.com

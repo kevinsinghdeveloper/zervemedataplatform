@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Optional, Union
 
-from zervedataplatform.abstractions.connectors.GenAIApiConnectorBase import GenAIApiConnectorBase
+from zervedataplatform.abstractions.connectors.ChatAgentAIConnectorBase import ChatAgentAiConnectorBase
 
 import google.generativeai as genai
 
@@ -10,12 +10,12 @@ from zervedataplatform.utils.DataTransformationUtility import DataTransformation
 from zervedataplatform.utils.Utility import Utility
 
 
-class GeminiGenAiConnector(GenAIApiConnectorBase):
+class GeminiGenAiConnector(ChatAgentAiConnectorBase):
     def __init__(self, gen_ai_api_config: dict):
         super().__init__(gen_ai_api_config)
         self.__model = None
 
-    def configure_llm(self):
+    def configure_model(self):
         config = self.get_config()
         genai.configure(api_key=config['api_key'])
 

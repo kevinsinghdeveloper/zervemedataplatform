@@ -2,6 +2,8 @@ from typing import Type, Dict, Any, List
 from dataclasses import fields
 from pyspark.sql import SparkSession, DataFrame
 from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector
+from zervedataplatform.connectors.sql_connectors.SqlConnectorHandler import SqlConnectorHandler
+from zervedataplatform.utils.Utility import Utility
 
 
 class SparkSQLConnector(SqlConnector):
@@ -14,6 +16,9 @@ class SparkSQLConnector(SqlConnector):
         """
         super().__init__(db_config)
 
+        # get sql connector for db config
+        self.__helper_db_connector = SqlConnectorHandler.get_sql_connector(db_config)
+
         # Create Spark session specifically for SQL operations
         self._spark = SparkSession.builder.appName("SparkSQLSession").getOrCreate()
 
@@ -22,6 +27,7 @@ class SparkSQLConnector(SqlConnector):
         self.user = db_config["user"]
         self.password = db_config["password"]
         self.schema = db_config.get("schema", "public")  # Default schema
+        self.driver = db_config.get("driver", "org.postgresql.Driver")
 
     def get_spark(self):
         """Returns the Spark session for SQL operations."""
@@ -44,7 +50,7 @@ class SparkSQLConnector(SqlConnector):
     def create_table_using_def(self, table_name: str, table_def: dict):
         """Creates a table using the provided column definitions."""
         columns = ', '.join([f"{col} {dtype}" for col, dtype in table_def.items()])
-        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns});"
+        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns})"
         self.exec_sql(query)
 
     def create_table_using_data_class(self, data_class: Type, table_name: str = None):
@@ -55,7 +61,7 @@ class SparkSQLConnector(SqlConnector):
         # Infer schema from data class
         columns = ', '.join([f"{field.name} {self._get_sql_type(field.type)}" for field in fields(data_class)])
 
-        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns});"
+        query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns})"
         self.exec_sql(query)
 
     def update_table_structure_using_data_class(self, data_class: Type, table_name: str = None):
@@ -70,22 +76,33 @@ class SparkSQLConnector(SqlConnector):
 
         for column in columns_to_add:
             col_type = self._get_sql_type(getattr(data_class, column))
-            query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN {column} {col_type};"
+            query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN {column} {col_type}"
             self.exec_sql(query)
 
     def bulk_insert_data_into_table(self, table_name: str, df: DataFrame):
         raise NotImplementedError("Bulk insert is not implemented for SparkSQLConnector. Use write_dataframe_to_table instead.")
 
-    def run_sql_and_get_df(self, query: str, warnings: bool = False) -> DataFrame:
-        """Runs a SQL query and returns a Spark DataFrame."""
-        return self.get_spark().read \
-            .format("jdbc") \
-            .option("url", self.db_url) \
-            .option("query", query) \
-            .option("user", self.user) \
-            .option("password", self.password) \
-            .option("driver", "org.postgresql.Driver") \
-            .load()
+    def run_sql_and_get_df(self, query: str, warnings: bool = False) -> DataFrame | None:
+        """Runs a SQL query and returns a Spark DataFrame, or None if query fails."""
+        try:
+            return self.get_spark().read \
+                .format("jdbc") \
+                .option("url", self.db_url) \
+                .option("query", query) \
+                .option("user", self.user) \
+                .option("password", self.password) \
+                .option("driver", self.driver) \
+                .load()
+        except Exception as e:
+            Utility.warning_log(f"SQL query failed: {e}")
+            return None
+
+    def get_table(self, table_name, limit_n: int = None) -> DataFrame:
+        limit = ""
+        if limit_n:
+            limit = f"LIMIT {limit_n}"
+
+        return self.run_sql_and_get_df(query=f"SELECT * FROM {self.schema}.{table_name} {limit}")
 
     def pull_data_from_table(self, table_name: str, columns: List[str], filters: dict = None) -> DataFrame:
         """Fetches data from a table with optional filters."""
@@ -99,47 +116,24 @@ class SparkSQLConnector(SqlConnector):
         return self.run_sql_and_get_df(query)
 
     def exec_sql(self, query: str):
-        """Executes a SQL query on the database via psycopg2."""
-        import psycopg2
+        """
+        Executes a SQL query on the database.
 
-        conn = None
-        cursor = None
-        try:
-            # Connect using psycopg2 directly
-            conn = psycopg2.connect(
-                host=self._config['host'],
-                port=self._config['port'],
-                database=self._config['database'],
-                user=self._config['user'],
-                password=self._config['password'],
-                options=f"-c search_path={self.schema}"
-            )
-            cursor = conn.cursor()
-
-            # Execute the query
-            cursor.execute(query)
-
-            # Commit for DML/DDL operations
-            conn.commit()
-
-        except Exception as e:
-            if conn:
-                conn.rollback()
-            raise Exception(f"Failed to execute SQL: {str(e)}")
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
+        Uses the helper connector for non-Spark operations (DDL, DML, etc.)
+        that Spark doesn't handle well.
+        """
+        # Delegate to the helper connector (e.g., PostgresSqlConnector)
+        # This avoids direct psycopg2 usage and leverages the existing connector
+        self.__helper_db_connector.exec_sql(query)
 
     def get_table_n_rows_to_df(self, table_name: str, nrows: int) -> DataFrame:
         """Fetches a limited number of rows from a table."""
-        query = f"SELECT * FROM {self.schema}.{table_name} LIMIT {nrows};"
+        query = f"SELECT * FROM {self.schema}.{table_name} LIMIT {nrows}"
         return self.run_sql_and_get_df(query)
 
     def drop_table(self, table_name: str):
         """Drops a table if it exists."""
-        query = f"DROP TABLE IF EXISTS {self.schema}.{table_name};"
+        query = f"DROP TABLE IF EXISTS {self.schema}.{table_name}"
         self.exec_sql(query)
 
     def list_tables_with_prefix(self, prefix: str) -> List[str]:
@@ -160,40 +154,51 @@ class SparkSQLConnector(SqlConnector):
             print(f"Error listing tables with prefix '{prefix}': {e}")
             return []
 
+    def list_tables(self) -> List[str]:
+        query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{self.schema}' ORDER BY table_name"
+
+        try:
+            df = self.run_sql_and_get_df(query)
+            return df.select("table_name").rdd.flatMap(lambda x: x).collect()
+        except Exception as e:
+            # If query fails, return empty list
+            print(f"Error listing tables: {e}")
+            return []
+
     def get_table_header(self, table_name: str) -> List[str]:
         """Retrieves column names from a table."""
-        query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';"
+        query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
         df = self.run_sql_and_get_df(query)
         return df.select("column_name").rdd.flatMap(lambda x: x).collect()
 
     def check_if_table_exists(self, table_name: str) -> bool:
         """Checks if a table exists."""
-        query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}');"
+        query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}')"
         df = self.run_sql_and_get_df(query)
         return df.collect()[0][0]
 
     def get_table_row_count(self, table_name: str, warnings: bool = False) -> int:
         """Gets the row count of a table."""
-        query = f"SELECT COUNT(*) FROM {self.schema}.{table_name};"
+        query = f"SELECT COUNT(*) FROM {self.schema}.{table_name}"
         df = self.run_sql_and_get_df(query)
         return df.collect()[0][0]
 
     def get_distinct_values_from_single_col(self, column_name: str, table_name: str) -> List[Any]:
         """Gets distinct values from a column."""
-        query = f"SELECT DISTINCT {column_name} FROM {self.schema}.{table_name};"
+        query = f"SELECT DISTINCT {column_name} FROM {self.schema}.{table_name}"
         df = self.run_sql_and_get_df(query)
         return df.select(column_name).rdd.flatMap(lambda x: x).collect()
 
     def clear_table(self, table_name: str):
         """Deletes all rows from a table."""
-        query = f"DELETE FROM {self.schema}.{table_name};"
+        query = f"DELETE FROM {self.schema}.{table_name}"
         self.exec_sql(query)
 
     def insert_row_to_table(self, table_name: str, row: Dict[str, Any]) -> int:
         """Inserts a row into a table."""
         columns = ', '.join(row.keys())
         values = ', '.join([f"'{v}'" if isinstance(v, str) else str(v) for v in row.values()])
-        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING id;"
+        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING id"
         df = self.run_sql_and_get_df(query)
         return df.collect()[0][0]
 
@@ -203,39 +208,18 @@ class SparkSQLConnector(SqlConnector):
         return [data_model(**row.asDict()) for row in df.collect()]
 
     def _get_sql_type(self, python_type) -> str:
-        """Maps Python types to PostgreSQL types."""
-        type_mapping = {
-            int: "INTEGER",
-            float: "REAL",
-            str: "TEXT",
-            bool: "BOOLEAN",
-            "int": "INTEGER",
-            "float": "REAL",
-            "str": "TEXT",
-            "bool": "BOOLEAN",
-        }
+        """
+        Maps Python types to SQL types.
 
-        # Handle typing module types
-        type_str = str(python_type)
-        if "int" in type_str.lower():
-            return "INTEGER"
-        elif "float" in type_str.lower():
-            return "REAL"
-        elif "str" in type_str.lower():
-            return "TEXT"
-        elif "bool" in type_str.lower():
-            return "BOOLEAN"
-        elif "datetime" in type_str.lower():
-            return "TIMESTAMP"
-        elif "date" in type_str.lower():
-            return "DATE"
-
-        return type_mapping.get(python_type, "TEXT")
+        Delegates to the helper connector to leverage its type mapping system,
+        which includes support for PostgresDataType enum, JSONB, vector types, etc.
+        """
+        return self.__helper_db_connector._get_sql_type(python_type)
 
     def create_table_ctas(self, tableName: str, innerSql: str, sortkey: str = None, distkey: str = None,
                           include_print: bool = True):
         """Creates a table using CREATE TABLE AS SELECT (CTAS)."""
-        query = f"CREATE TABLE {self.schema}.{tableName} AS {innerSql};"
+        query = f"CREATE TABLE {self.schema}.{tableName} AS {innerSql}"
         if include_print:
             print(f"Creating table {tableName} with CTAS")
         self.exec_sql(query)
@@ -243,19 +227,19 @@ class SparkSQLConnector(SqlConnector):
     def append_to_table_insert_select(self, tableName: str, innerSql: str, columnStr: str = None):
         """Appends data to a table using INSERT INTO ... SELECT."""
         if columnStr:
-            query = f"INSERT INTO {self.schema}.{tableName} ({columnStr}) {innerSql};"
+            query = f"INSERT INTO {self.schema}.{tableName} ({columnStr}) {innerSql}"
         else:
-            query = f"INSERT INTO {self.schema}.{tableName} {innerSql};"
+            query = f"INSERT INTO {self.schema}.{tableName} {innerSql}"
         self.exec_sql(query)
 
     def clone_table(self, tableName: str, newTableName: str):
         """Clones a table structure and data."""
-        query = f"CREATE TABLE {self.schema}.{newTableName} AS SELECT * FROM {self.schema}.{tableName};"
+        query = f"CREATE TABLE {self.schema}.{newTableName} AS SELECT * FROM {self.schema}.{tableName}"
         self.exec_sql(query)
 
     def rename_table(self, table_name, new_table_name):
         """Renames a table."""
-        query = f"ALTER TABLE {self.schema}.{table_name} RENAME TO {new_table_name};"
+        query = f"ALTER TABLE {self.schema}.{table_name} RENAME TO {new_table_name}"
         self.exec_sql(query)
 
     def test_table_by_row_count(self, table_name):
@@ -266,7 +250,7 @@ class SparkSQLConnector(SqlConnector):
     def check_db_status(self) -> bool:
         """Checks if the database connection is working."""
         try:
-            query = "SELECT 1 AS status;"
+            query = "SELECT 1 AS status"
             df = self.run_sql_and_get_df(query)
             result = df.collect()[0][0]
             return result == 1
@@ -292,7 +276,7 @@ class SparkSQLConnector(SqlConnector):
         INSERT INTO {self.schema}.{table_name} ({columns})
         VALUES ({values})
         ON CONFLICT ({identifier_column})
-        DO UPDATE SET {update_set};
+        DO UPDATE SET {update_set}
         """
 
         try:
@@ -323,7 +307,7 @@ class SparkSQLConnector(SqlConnector):
         query = f"""
         UPDATE {self.schema}.{table_name}
         SET {set_clause}
-        WHERE {where_clause};
+        WHERE {where_clause}
         """
 
         try:
@@ -343,7 +327,7 @@ class SparkSQLConnector(SqlConnector):
         columns = ', '.join(field_dict.keys())
         values = ', '.join([f"'{v}'" if isinstance(v, str) else str(v) for v in field_dict.values()])
 
-        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING {pk_key};"
+        query = f"INSERT INTO {self.schema}.{table_name} ({columns}) VALUES ({values}) RETURNING {pk_key}"
 
         try:
             df = self.run_sql_and_get_df(query)
@@ -365,6 +349,26 @@ class SparkSQLConnector(SqlConnector):
             .option("dbtable", f"{self.schema}.{table_name}") \
             .option("user", self.user) \
             .option("password", self.password) \
-            .option("driver", "org.postgresql.Driver") \
+            .option("driver", self.driver) \
             .mode(mode) \
             .save()
+
+    def cast_column(self, table_name: str, column_name: str, type: Any):
+        """
+        Cast a column to a different type by delegating to helper connector.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: SQL type instance (e.g., PostgresSqlType)
+        """
+        self.__helper_db_connector.cast_column(table_name, column_name, type)
+
+    def create_index_column(self, index: Any):
+        """
+        Create an index on a column by delegating to helper connector.
+
+        Args:
+            index: Index definition object (e.g., PostgresSqlVectorTypeDef)
+        """
+        self.__helper_db_connector.create_index_column(index)

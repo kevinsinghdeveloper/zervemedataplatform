@@ -4,6 +4,7 @@
 __all__ = [
     "SqlConnector",
     "CloudConnector",
-    "AiApiConnectorBase",
-    "GenAIApiConnectorBase",
+    "ChatAgentAIConnectorBase",
+    "EmbeddingsAIConnectorBase",
+    "AIConnectorBase"
 ]

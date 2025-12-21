@@ -1,15 +1,382 @@
 from datetime import datetime
 import json
-from dataclasses import fields, asdict
-from typing import Type, Dict, List, Any
+from dataclasses import fields, asdict, dataclass
+from typing import Type, Dict, List, Any, Optional
+from enum import Enum
 
-from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector
+from zervedataplatform.abstractions.connectors.SqlConnector import SqlConnector, SqlType
 
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
 from zervedataplatform.utils.Utility import Utility
+
+
+class PGVectorIndexes(Enum):
+    """PostgreSQL pgvector index types"""
+    IVFFLAT_COSINE = "ivfflat_cosine"
+    IVFFLAT_L2 = "ivfflat_l2"
+    IVFFLAT_IP = "ivfflat_ip"  # Inner product
+    HNSW_COSINE = "hnsw_cosine"
+    HNSW_L2 = "hnsw_l2"
+    HNSW_IP = "hnsw_ip"
+
+@dataclass(frozen=True)
+class PostgresSqlTypeDef(SqlType):
+    """
+    Represents a PostgreSQL data type with optional parameters.
+
+    Inherits from SqlType base class to provide PostgreSQL-specific type system.
+
+    """
+    base_type: str
+    length: Optional[int] = None
+    precision: Optional[int] = None
+    scale: Optional[int] = None
+    dimensions: Optional[int] = None
+
+    def to_sql(self) -> str:
+        """
+        Generate the SQL type string for this type.
+
+        Subclasses may override this method for database-specific formatting.
+
+        Returns:
+            str: Valid SQL type declaration
+        """
+        if self.dimensions is not None:
+            return f"{self.base_type}({self.dimensions})"
+        elif self.length is not None:
+            return f"{self.base_type}({self.length})"
+        elif self.precision is not None and self.scale is not None:
+            return f"{self.base_type}({self.precision},{self.scale})"
+        elif self.precision is not None:
+            return f"{self.base_type}({self.precision})"
+        return self.base_type
+
+@dataclass(frozen=True)
+class PostgresSqlVectorTypeDef(SqlType):
+    """
+    Represents a PostgreSQL vector index definition for pgvector.
+
+    Supports IVFFlat and HNSW indexes with different distance operators.
+
+    Attributes:
+        base_type: Index type identifier
+        index_type: PGVectorIndexes enum value
+        idx_table: Table name for the index
+        idx_column: Column name for the index
+        idx_schema: Schema name for the index (set by connector, defaults to None)
+        idx_lists: Number of inverted lists (IVFFlat only)
+        idx_m: Max number of connections per layer (HNSW only)
+        idx_ef_construction: Size of dynamic candidate list for construction (HNSW only)
+    """
+    base_type: str
+    index_type: PGVectorIndexes
+    idx_table: Optional[str] = None
+    idx_column: Optional[str] = None
+    idx_schema: Optional[str] = None
+
+    # IVFFlat parameters
+    idx_lists: Optional[int] = None
+
+    # HNSW parameters
+    idx_m: Optional[int] = None
+    idx_ef_construction: Optional[int] = None
+
+    def to_sql(self) -> str:
+        """
+        Generate the CREATE INDEX SQL statement.
+
+        Returns:
+            str: Valid PostgreSQL CREATE INDEX statement for pgvector
+        """
+        if not self.idx_table or not self.idx_column:
+            return self.base_type
+
+        # Determine index method and operator class
+        schema = self.idx_schema or "public"
+
+        if self.index_type == PGVectorIndexes.IVFFLAT_COSINE:
+            index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_cosine_idx"
+            params = f"WITH (lists = {self.idx_lists or 100})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {schema}.{self.idx_table} USING ivfflat ({self.idx_column} vector_cosine_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.IVFFLAT_L2:
+            index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_l2_idx"
+            params = f"WITH (lists = {self.idx_lists or 100})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {schema}.{self.idx_table} USING ivfflat ({self.idx_column} vector_l2_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.IVFFLAT_IP:
+            index_name = f"{self.idx_table}_{self.idx_column}_ivfflat_ip_idx"
+            params = f"WITH (lists = {self.idx_lists or 100})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {schema}.{self.idx_table} USING ivfflat ({self.idx_column} vector_ip_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.HNSW_COSINE:
+            index_name = f"{self.idx_table}_{self.idx_column}_hnsw_cosine_idx"
+            m = self.idx_m or 16
+            ef = self.idx_ef_construction or 64
+            params = f"WITH (m = {m}, ef_construction = {ef})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {schema}.{self.idx_table} USING hnsw ({self.idx_column} vector_cosine_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.HNSW_L2:
+            index_name = f"{self.idx_table}_{self.idx_column}_hnsw_l2_idx"
+            m = self.idx_m or 16
+            ef = self.idx_ef_construction or 64
+            params = f"WITH (m = {m}, ef_construction = {ef})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {schema}.{self.idx_table} USING hnsw ({self.idx_column} vector_l2_ops) "
+                f"{params};"
+            )
+
+        elif self.index_type == PGVectorIndexes.HNSW_IP:
+            index_name = f"{self.idx_table}_{self.idx_column}_hnsw_ip_idx"
+            m = self.idx_m or 16
+            ef = self.idx_ef_construction or 64
+            params = f"WITH (m = {m}, ef_construction = {ef})"
+            return (
+                f"CREATE INDEX {index_name} "
+                f"ON {schema}.{self.idx_table} USING hnsw ({self.idx_column} vector_ip_ops) "
+                f"{params};"
+            )
+
+        return self.base_type
+
+# ============================================================================
+# Factory functions for parameterized types
+# ============================================================================
+
+# For backwards compatibility, keep the old PostgresDataType name as an alias
+class PostgresDataType:
+    # Integer types
+    INTEGER = PostgresSqlTypeDef("INTEGER")
+    BIGINT = PostgresSqlTypeDef("BIGINT")
+    SMALLINT = PostgresSqlTypeDef("SMALLINT")
+    SERIAL = PostgresSqlTypeDef("SERIAL")
+    BIGSERIAL = PostgresSqlTypeDef("BIGSERIAL")
+
+    # String types
+    VARCHAR = PostgresSqlTypeDef("VARCHAR")  # Generic VARCHAR, use VARCHAR(n) for specific length
+    TEXT = PostgresSqlTypeDef("TEXT")
+    CHAR = PostgresSqlTypeDef("CHAR")
+
+    # Floating point types
+    FLOAT = PostgresSqlTypeDef("FLOAT")
+    REAL = PostgresSqlTypeDef("REAL")
+    DOUBLE_PRECISION = PostgresSqlTypeDef("DOUBLE PRECISION")
+    NUMERIC = PostgresSqlTypeDef("NUMERIC")  # Generic NUMERIC, use NUMERIC(p,s) for specific
+    DECIMAL = PostgresSqlTypeDef("DECIMAL")
+
+    # Boolean
+    BOOLEAN = PostgresSqlTypeDef("BOOLEAN")
+
+    # Date/Time types
+    DATE = PostgresSqlTypeDef("DATE")
+    TIME = PostgresSqlTypeDef("TIME")
+    TIMESTAMP = PostgresSqlTypeDef("TIMESTAMP")
+    TIMESTAMPTZ = PostgresSqlTypeDef("TIMESTAMPTZ")
+    INTERVAL = PostgresSqlTypeDef("INTERVAL")
+
+    # JSON types
+    JSON = PostgresSqlTypeDef("JSON")
+    JSONB = PostgresSqlTypeDef("JSONB")
+
+    # Other types
+    ARRAY = PostgresSqlTypeDef("ARRAY")
+    UUID = PostgresSqlTypeDef("UUID")
+    BYTEA = PostgresSqlTypeDef("BYTEA")
+
+    VECTOR = PostgresSqlTypeDef("vector")  # Generic vector type
+
+    @staticmethod
+    def vector(dimensions: int) -> PostgresSqlTypeDef:
+        """Create a vector type with specific dimensions for pgvector."""
+        return PostgresSqlTypeDef("vector", dimensions=dimensions)
+
+    # ============================================================================
+    # pgvector Index Factories
+    # ============================================================================
+
+    @staticmethod
+    def ivfflat_cosine(table: str, column: str, lists: int = 100) -> PostgresSqlVectorTypeDef:
+        """
+        Create an IVFFlat index using cosine distance for vector similarity search.
+
+        IVFFlat is faster but less accurate than HNSW. Good for large datasets.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            lists: Number of inverted lists (default 100, recommended: rows/1000)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "ivfflat_cosine",
+            idx_table=table,
+            idx_column=column,
+            idx_lists=lists,
+            index_type=PGVectorIndexes.IVFFLAT_COSINE
+        )
+
+    @staticmethod
+    def ivfflat_l2(table: str, column: str, lists: int = 100) -> PostgresSqlVectorTypeDef:
+        """
+        Create an IVFFlat index using L2 (Euclidean) distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            lists: Number of inverted lists (default 100)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "ivfflat_l2",
+            idx_table=table,
+            idx_column=column,
+            idx_lists=lists,
+            index_type=PGVectorIndexes.IVFFLAT_L2
+        )
+
+    @staticmethod
+    def ivfflat_ip(table: str, column: str, lists: int = 100) -> PostgresSqlVectorTypeDef:
+        """
+        Create an IVFFlat index using inner product distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            lists: Number of inverted lists (default 100)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "ivfflat_ip",
+            idx_table=table,
+            idx_column=column,
+            idx_lists=lists,
+            index_type=PGVectorIndexes.IVFFLAT_IP
+        )
+
+    @staticmethod
+    def hnsw_cosine(table: str, column: str, m: int = 16, ef_construction: int = 64) -> PostgresSqlVectorTypeDef:
+        """
+        Create an HNSW index using cosine distance.
+
+        HNSW is more accurate but slower to build than IVFFlat. Better for smaller datasets.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            m: Max number of connections per layer (default 16, higher = better recall, more memory)
+            ef_construction: Size of dynamic candidate list for construction (default 64, higher = better quality)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "hnsw_cosine",
+            idx_table=table,
+            idx_column=column,
+            idx_m=m,
+            idx_ef_construction=ef_construction,
+            index_type=PGVectorIndexes.HNSW_COSINE
+        )
+
+    @staticmethod
+    def hnsw_l2(table: str, column: str, m: int = 16, ef_construction: int = 64) -> PostgresSqlVectorTypeDef:
+        """
+        Create an HNSW index using L2 (Euclidean) distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            m: Max number of connections per layer (default 16)
+            ef_construction: Size of dynamic candidate list for construction (default 64)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "hnsw_l2",
+            idx_table=table,
+            idx_column=column,
+            idx_m=m,
+            idx_ef_construction=ef_construction,
+            index_type=PGVectorIndexes.HNSW_L2
+        )
+
+    @staticmethod
+    def hnsw_ip(table: str, column: str, m: int = 16, ef_construction: int = 64) -> PostgresSqlVectorTypeDef:
+        """
+        Create an HNSW index using inner product distance.
+
+        Args:
+            table: Table name
+            column: Column name containing vectors
+            m: Max number of connections per layer (default 16)
+            ef_construction: Size of dynamic candidate list for construction (default 64)
+
+        Returns:
+            PostgresSqlVectorTypeDef instance for creating the index
+
+        Note:
+            Schema will be automatically set by the connector when creating the index
+        """
+        return PostgresSqlVectorTypeDef(
+            "hnsw_ip",
+            idx_table=table,
+            idx_column=column,
+            idx_m=m,
+            idx_ef_construction=ef_construction,
+            index_type=PGVectorIndexes.HNSW_IP
+        )
+
+    # @staticmethod
+    # def ivfflat_inner_product(table: str, column: str, lists: int = 100) -> str:
+    #     """Generate SQL for an IVFFLAT index using inner product similarity."""
+    #     return (
+    #         f"CREATE INDEX {table}_{column}_ivfflat_ip_idx "
+    #         f"ON {table} USING ivfflat ({column} vector_ip_ops) "
+    #         f"WITH (lists = {lists});"
+    #     )
 
 
 class PostgresSqlConnector(SqlConnector):
@@ -24,12 +391,12 @@ class PostgresSqlConnector(SqlConnector):
         cur = None
         try:
             conn = psycopg2.connect(
-                dbname=self._config["dbname"],
+                dbname=self._config["database"],
                 user=self._config["user"],
                 password=self._config["password"],
                 host=self._config["host"],
                 port=self._config["port"],
-                options=self._config.get("options", "")
+                options=self._config.get("options", f"-c search_path={self.schema}")
             )
             cur = conn.cursor()
             return conn, cur
@@ -97,37 +464,72 @@ class PostgresSqlConnector(SqlConnector):
         query = f"CREATE TABLE IF NOT EXISTS {self.schema}.{table_name} ({columns_definition});"
         self.exec_sql(query)
 
-    def _get_sql_type(self, python_type):
-        """Maps Python types to SQL types."""
-        # Convert the type to string and handle Optional
+    def _get_sql_type(self, python_type) -> PostgresSqlTypeDef:
+        """
+        Maps Python types to PostgreSQL types using PostgresSqlTypeDef dataclass.
+        Supports pgvector extension for vector/embedding types.
+
+        Args:
+            python_type: Python type or type annotation to map
+
+        Returns:
+            PostgresSqlTypeDef: PostgreSQL type instance
+
+        Examples:
+            >>> _get_sql_type(int)
+            PostgresSqlTypeDef(base_type='INTEGER')
+            >>> _get_sql_type(dict)
+            PostgresSqlTypeDef(base_type='JSONB')
+            >>> _get_sql_type(list)
+            PostgresSqlTypeDef(base_type='JSONB')  # Arrays/lists default to JSONB for flexibility
+        """
+        # Mapping from Python types to PostgreSQL types
+        type_mapping = {
+            int: PostgresDataType.INTEGER,
+            str: PostgresDataType.VARCHAR,
+            float: PostgresDataType.FLOAT,
+            bool: PostgresDataType.BOOLEAN,
+            dict: PostgresDataType.JSONB,
+            list: PostgresDataType.JSONB,  # Lists default to JSONB (can be ARRAY or vector depending on use case)
+            datetime: PostgresDataType.TIMESTAMP
+        }
+
+        # Try direct type lookup first
+        if python_type in type_mapping:
+            return type_mapping[python_type]
+
+        # Handle type annotations (Optional, Union, List, etc.)
         type_str = str(python_type).lower()
 
-        # Mapping from Python types to SQL types
-        mapping = {
-            'int': 'INTEGER',
-            'str': 'VARCHAR',
-            'float': 'FLOAT',
-            'bool': 'BOOLEAN',
-            'dict': 'JSONB'
-            # Add other type mappings as needed
-        }
-        mapping_types = {
-            int: 'INTEGER',
-            str: 'VARCHAR',
-            float: 'FLOAT',
-            bool: 'BOOLEAN',
-            dict: 'JSONB',
-            datetime: 'TIMESTAMP'
-            # Add other type mappings as needed
+        # String-based type mapping for annotations
+        string_type_mapping = {
+            'int': PostgresDataType.INTEGER,
+            'str': PostgresDataType.VARCHAR,
+            'float': PostgresDataType.FLOAT,
+            'bool': PostgresDataType.BOOLEAN,
+            'dict': PostgresDataType.JSONB,
+            'list': PostgresDataType.JSONB,
+            'datetime': PostgresDataType.TIMESTAMP,
+            'date': PostgresDataType.DATE,
+            'time': PostgresDataType.TIME,
+            'json': PostgresDataType.JSONB,
+            'jsonb': PostgresDataType.JSONB,
+            'vector': PostgresDataType.VECTOR  # Generic vector without dimensions
         }
 
-        if 'optional' in type_str:
-            for type in mapping:
-                if type in type_str:
-                    return type
+        # Check for type hints in string representation
+        if 'optional' in type_str or 'union' in type_str:
+            for type_name, pg_type in string_type_mapping.items():
+                if type_name in type_str:
+                    return pg_type
 
-        # Return the corresponding SQL type, defaulting to VARCHAR for unknown types
-        return mapping_types.get(python_type, 'VARCHAR')  # Default to VARCHAR for unknown types
+        # Direct string matching
+        for type_name, pg_type in string_type_mapping.items():
+            if type_name in type_str:
+                return pg_type
+
+        # Default to VARCHAR for unknown types
+        return PostgresDataType.VARCHAR
 
     def execute_sql_file(self, file_path: str):
         """Executes SQL commands from a file.
@@ -258,6 +660,20 @@ class PostgresSqlConnector(SqlConnector):
 
         return df
 
+    def get_table(self, table_name, limit_n: int = None):
+        """Retrieves data from a specified table as a DataFrame.
+
+        Args:
+            table_name (str): The name of the table.
+            limit_n (int, optional): Maximum number of rows to retrieve.
+
+        Returns:
+            pd.DataFrame: The resulting DataFrame containing the rows.
+        """
+        limit_clause = f"LIMIT {limit_n}" if limit_n else ""
+        query = f"SELECT * FROM {self.schema}.{table_name} {limit_clause};"
+        return self.run_sql_and_get_df(query)
+
     def get_table_n_rows_to_df(self, tableName: str, nrows: int) -> pd.DataFrame:
         """Retrieves the first n rows from a specified table as a DataFrame.
 
@@ -279,6 +695,40 @@ class PostgresSqlConnector(SqlConnector):
         """
         query = f"DROP TABLE IF EXISTS {self.schema}.{tableName};"
         self.exec_sql(query)
+
+    def list_tables(self) -> List[str]:
+        """Lists all tables in the current schema.
+
+        Returns:
+            List[str]: List of table names in the schema.
+        """
+        query = f"""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = '{self.schema}'
+        ORDER BY table_name;
+        """
+        result = self.run_sql_and_get_df(query)
+        return result['table_name'].tolist() if not result.empty else []
+
+    def list_tables_with_prefix(self, prefix: str) -> List[str]:
+        """Lists all tables in the current schema that start with the given prefix.
+
+        Args:
+            prefix (str): The prefix to filter table names.
+
+        Returns:
+            List[str]: List of table names matching the prefix.
+        """
+        query = f"""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = '{self.schema}'
+        AND table_name LIKE '{prefix}%'
+        ORDER BY table_name;
+        """
+        result = self.run_sql_and_get_df(query)
+        return result['table_name'].tolist() if not result.empty else []
 
     def create_table_ctas(self, tableName: str, innerSql: str, sortkey: str = None, distkey: str = None,
                           include_print: bool = True):
@@ -712,4 +1162,102 @@ class PostgresSqlConnector(SqlConnector):
         ]
 
         return data_instances
+
+    def write_dataframe_to_table(self, df, table_name: str, mode: str = "append"):
+        """Writes a pandas DataFrame to a database table.
+
+        Args:
+            df: Pandas DataFrame to write
+            table_name (str): Target table name
+            mode (str): Write mode - 'append', 'replace', 'fail'
+                - 'append': Insert new records (default)
+                - 'replace': Drop table and recreate
+                - 'fail': Raise error if table exists
+
+        Note:
+            This method is designed for pandas DataFrames.
+            For Spark DataFrames, use SparkSQLConnector instead.
+        """
+        from sqlalchemy import create_engine
+
+        # Create SQLAlchemy connection string
+        connection_string = f"postgresql://{self._config['user']}:{self._config['password']}@{self._config['host']}:{self._config['port']}/{self._config['dbname']}"
+
+        # Add options if they exist
+        if 'options' in self._config and self._config['options']:
+            connection_string += f"?options={self._config['options']}"
+
+        try:
+            # Create engine
+            engine = create_engine(connection_string)
+
+            # Map mode parameter to pandas if_exists parameter
+            if_exists_map = {
+                'append': 'append',
+                'replace': 'replace',
+                'overwrite': 'replace',
+                'fail': 'fail',
+                'error': 'fail'
+            }
+            if_exists = if_exists_map.get(mode, 'append')
+
+            # Write DataFrame to database
+            df.to_sql(
+                name=table_name,
+                con=engine,
+                schema=self.schema,
+                if_exists=if_exists,
+                index=False,
+                method='multi'  # Use multi-row INSERT for better performance
+            )
+
+            Utility.log(f"Successfully wrote {len(df)} rows to {self.schema}.{table_name} (mode: {mode})")
+
+        except Exception as e:
+            Utility.error_log(f"Error writing DataFrame to table {table_name}: {e}")
+            raise
+        finally:
+            if 'engine' in locals():
+                engine.dispose()
+
+    def cast_column(self, table_name: str, column_name: str, type: PostgresSqlTypeDef):
+        """
+        Cast a column to a different type using ALTER TABLE.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column to cast
+            type: PostgresSqlTypeDef instance representing the target type
+
+        Example:
+            >>> connector.cast_column("users", "age", INTEGER)
+            >>> connector.cast_column("products", "embedding", PostgresDataType.vector(1536))
+        """
+        query = f"ALTER TABLE {self.schema}.{table_name} ALTER COLUMN {column_name} TYPE {type.to_sql()};"
+        self.exec_sql(query)
+
+    def create_index_column(self, index: PostgresSqlVectorTypeDef):
+        """
+        Create an index on a specific column for a given table.
+
+        The index object contains all necessary information (table, column, type, parameters).
+        Supports pgvector indexes (ivfflat with cosine/L2 distance operators).
+        The connector's schema is automatically injected into the index.
+
+        Args:
+            index: PostgresSqlVectorTypeDef instance containing index configuration
+
+        Example:
+            >>> # Create ivfflat index with cosine similarity
+            >>> index = PostgresDataType.ivfflat_cosine('products', 'embedding', lists=100)
+            >>> connector.create_index_column(index)
+        """
+        from dataclasses import replace
+
+        # Inject the connector's schema into the index if not already set
+        if index.idx_schema is None:
+            index = replace(index, idx_schema=self.schema)
+
+        index_sql = index.to_sql()
+        self.exec_sql(index_sql)
 

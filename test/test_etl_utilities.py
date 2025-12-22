@@ -1454,6 +1454,171 @@ class TestETLUtilities(unittest.TestCase):
         mock_source_sql.create_index_column.assert_called_once_with(index)
         mock_dest_sql.create_index_column.assert_not_called()
 
+    # Tests for move_table method
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_move_table_to_destination_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test move_table moves table from source to destination database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Move table from source to destination
+        etl_util.move_table('users', to_destination_db=True)
+
+        # Verify table was read from source
+        mock_source_sql.get_table.assert_called_once_with('users')
+        mock_dest_sql.get_table.assert_not_called()
+
+        # Verify table was written to destination
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(mock_df, 'users')
+        mock_source_sql.write_dataframe_to_table.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_move_table_to_source_db(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test move_table moves table from destination to source database"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_dest_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Move table from destination to source
+        etl_util.move_table('analytics', to_destination_db=False)
+
+        # Verify table was read from destination
+        mock_dest_sql.get_table.assert_called_once_with('analytics')
+        mock_source_sql.get_table.assert_not_called()
+
+        # Verify table was written to source
+        mock_source_sql.write_dataframe_to_table.assert_called_once_with(mock_df, 'analytics')
+        mock_dest_sql.write_dataframe_to_table.assert_not_called()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_move_table_default_parameter(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test move_table defaults to moving from source to destination"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Call without specifying to_destination_db (should default to True)
+        etl_util.move_table('products')
+
+        # Verify default behavior: source to destination
+        mock_source_sql.get_table.assert_called_once_with('products')
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(mock_df, 'products')
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_move_table_preserves_table_name(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test move_table preserves the original table name in destination"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df = Mock(spec=DataFrame)
+        mock_source_sql.get_table.return_value = mock_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        table_name = 'complex_table_name_123'
+        etl_util.move_table(table_name, to_destination_db=True)
+
+        # Verify the table name is preserved in both read and write operations
+        mock_source_sql.get_table.assert_called_once_with(table_name)
+        mock_dest_sql.write_dataframe_to_table.assert_called_once_with(mock_df, table_name)
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_move_table_with_real_dataframe(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test move_table handles actual DataFrame data"""
+        spark = SparkSession.builder.appName("TestApp").master("local[1]").getOrCreate()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = spark
+
+        # Create real DataFrame
+        test_data = [
+            {"id": 1, "name": "Alice", "age": 30},
+            {"id": 2, "name": "Bob", "age": 25}
+        ]
+        real_df = spark.createDataFrame(test_data)
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_source_sql.get_table.return_value = real_df
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        etl_util.move_table('test_table', to_destination_db=True)
+
+        # Verify the DataFrame passed to write is the same one from get_table
+        mock_dest_sql.write_dataframe_to_table.assert_called_once()
+        call_args = mock_dest_sql.write_dataframe_to_table.call_args
+        written_df = call_args[0][0]
+        written_table_name = call_args[0][1]
+
+        self.assertEqual(written_table_name, 'test_table')
+        self.assertIsInstance(written_df, DataFrame)
+        self.assertEqual(written_df.count(), 2)
+
+        spark.stop()
+
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')
+    @patch('zervedataplatform.utils.ETLUtilities.SparkSession')
+    def test_move_table_bidirectional(self, mock_spark_session, mock_cloud_connector, mock_sql_connector):
+        """Test move_table can move tables in both directions"""
+        mock_spark = MagicMock()
+        mock_spark_session.builder.appName.return_value.config.return_value.config.return_value.getOrCreate.return_value = mock_spark
+
+        mock_source_sql = Mock()
+        mock_dest_sql = Mock()
+        mock_df1 = Mock(spec=DataFrame)
+        mock_df2 = Mock(spec=DataFrame)
+        mock_source_sql.get_table.return_value = mock_df1
+        mock_dest_sql.get_table.return_value = mock_df2
+        mock_sql_connector.side_effect = [mock_source_sql, mock_dest_sql]
+
+        etl_util = ETLUtilities(self.mock_pipeline_config)
+
+        # Move from source to dest
+        etl_util.move_table('table1', to_destination_db=True)
+        mock_source_sql.get_table.assert_called_with('table1')
+        mock_dest_sql.write_dataframe_to_table.assert_called_with(mock_df1, 'table1')
+
+        # Move from dest to source
+        etl_util.move_table('table2', to_destination_db=False)
+        mock_dest_sql.get_table.assert_called_with('table2')
+        mock_source_sql.write_dataframe_to_table.assert_called_with(mock_df2, 'table2')
+
     # Tests for union_spark_df method
     @patch('zervedataplatform.utils.ETLUtilities.SparkSQLConnector')
     @patch('zervedataplatform.utils.ETLUtilities.SparkCloudConnector')

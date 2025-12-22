@@ -101,6 +101,17 @@ class ETLUtilities:
         tables = db_manager.list_tables_with_prefix(prefix)
         return tables
 
+    def move_table(self, table_name: str, to_destination_db: bool = True):
+        if to_destination_db:
+            source = self.__spark_source_db_manager
+            dest = self.__spark_dest_db_manager
+        else:
+            source = self.__spark_dest_db_manager
+            dest = self.__spark_source_db_manager
+
+        df = source.get_table(table_name)
+        dest.write_dataframe_to_table(df, table_name)
+
     def check_all_files_consistency_in_folder(self, folder: str) -> tuple[bool, dict[str, list[Any]]]:
         # for each df
         errors = {}

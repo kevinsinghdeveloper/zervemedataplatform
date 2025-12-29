@@ -160,9 +160,19 @@ class ETLUtilities:
     def get_df_from_cloud(self, path):
         return self.__spark_cloud_manager.get_dataframe_from_cloud(file_path=path)
 
+    def check_if_table_exists(self, table_name: str, use_dest_db: bool = False):
+        return True if self.read_db_table_to_df(table_name=table_name, limit_n=1, use_dest_db=use_dest_db) else False
+
     def write_df_to_table(self, df: DataFrame, table_name: str, mode: str = "overwrite", use_dest_db: bool = False):
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager
-        db_manager.write_dataframe_to_table(df=df, table_name=table_name, mode=mode)
+        table_exists = self.check_if_table_exists(table_name=table_name, use_dest_db=use_dest_db)
+        if table_exists:
+            temp_table_name = table_name + '_temp'
+            self.write_df_to_table(df=df, table_name=temp_table_name, mode=mode, use_dest_db=use_dest_db)
+            self.drop_db_table(table_name=table_name, use_dest_db=use_dest_db)
+            db_manager.rename_table(temp_table_name, table_name)
+        else:
+            db_manager.write_dataframe_to_table(df=df, table_name=table_name, mode=mode)
 
     def read_db_table_to_df(self, table_name, limit_n: int = None, use_dest_db: bool = False):
         db_manager = self.__spark_dest_db_manager if use_dest_db else self.__spark_source_db_manager

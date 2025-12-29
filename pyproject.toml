@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zervedataplatform"
-version = "0.2.5.3"
+version = "0.2.5.4"
 description = "E-commerce data extraction and processing platform with AI-powered enrichment"
 readme = "README.md"
 requires-python = ">=3.8"

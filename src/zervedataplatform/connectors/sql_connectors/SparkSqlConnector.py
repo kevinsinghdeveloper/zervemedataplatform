@@ -94,7 +94,8 @@ class SparkSQLConnector(SqlConnector):
                 .option("driver", self.driver) \
                 .load()
         except Exception as e:
-            Utility.warning_log(f"SQL query failed: {e}")
+            if warnings:
+                Utility.warning_log(f"SQL query failed: {e}")
             return None
 
     def get_table(self, table_name, limit_n: int = None) -> DataFrame:
@@ -251,7 +252,7 @@ class SparkSQLConnector(SqlConnector):
         """Checks if the database connection is working."""
         try:
             query = "SELECT 1 AS status"
-            df = self.run_sql_and_get_df(query)
+            df = self.run_sql_and_get_df(query, warnings=False)
             result = df.collect()[0][0]
             return result == 1
         except Exception:

@@ -94,7 +94,8 @@ class SparkSQLConnector(SqlConnector):
                 .option("driver", self.driver) \
                 .load()
         except Exception as e:
-            Utility.warning_log(f"SQL query failed: {e}")
+            if warnings:
+                Utility.warning_log(f"SQL query failed: {e}")
             return None
 
     def get_table(self, table_name, limit_n: int = None) -> DataFrame:
